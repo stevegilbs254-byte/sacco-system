@@ -52,4 +52,6 @@ app.post('/api/loans', async (req,res)=>{
 
 app.listen(process.env.PORT||5000, ()=>
   console.log('✅ SACCO Backend running on http://localhost:5000 - KEEP THIS WINDOW OPEN!')
+let members = [{id: 1,name: "steve gilbs",saving:45500}];
+let loan = []
 );
