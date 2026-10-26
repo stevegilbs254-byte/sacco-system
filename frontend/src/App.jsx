@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import useSWR from 'swr';
 import './App.css';
 
 const registry = [
@@ -45,6 +46,26 @@ const starterApplications = [
     date: '2026-10-23',
   },
 ];
+
+const API_URL = (import.meta.env.VITE_API_URL || 'https://sacco-system-api.vercel.app').replace(/\/$/, '');
+
+const fetchJson = async (url) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  return res.json();
+};
+
+const toViewApplication = (item) => ({
+  id: String(item._id),
+  memberName: item.memberName,
+  memberPosition: 'Member',
+  phoneNumber: item.phoneNumber,
+  purpose: item.purpose,
+  amount: Number(item.requestedAmount || 0),
+  contribution: Number(item.savings || 0),
+  status: item.status || 'Pending',
+  date: String(item.applicationDate || item.createdAt || '').slice(0, 10),
+});
 
 const initialChats = [
   { sender: 'bot', text: 'Hi! I am the SACCO assistant. Ask me about qualification rules, approval process, or loan limits.' },
@@ -129,8 +150,17 @@ function getQualification(profile) {
 
 function App() {
   const [profile, setProfile] = useState(defaultProfile);
-  const [applications, setApplications] = useState(starterApplications);
-  const [selectedApplicationId, setSelectedApplicationId] = useState(starterApplications[0]?.id ?? null);
+  const { data: serverApplications, error: applicationsError, mutate: mutateApplications } = useSWR(
+    `${API_URL}/api/applications`,
+    fetchJson
+  );
+  const applications = useMemo(
+    () => (serverApplications ? serverApplications.map(toViewApplication) : starterApplications),
+    [serverApplications]
+  );
+  const [selectedApplicationId, setSelectedApplicationId] = useState(null);
+  const [adminMessage, setAdminMessage] = useState('');
+  const [updatingId, setUpdatingId] = useState(null);
   const [view, setView] = useState('choose');
   const [chatMessages, setChatMessages] = useState(initialChats);
   const [chatInput, setChatInput] = useState('');
@@ -142,33 +172,65 @@ function App() {
 
   const updateField = (key, value) => setProfile((current) => ({ ...current, [key]: value }));
 
-  const handleSubmit = () => {
-    const nextApp = {
-      id: Date.now(),
-      memberName: profile.memberName,
-      memberPosition: 'Member',
-      purpose: profile.purpose,
-      amount: Number(profile.requestedAmount || 0),
-      contribution: Number(profile.savings || 0),
-      status: qualification.qualified ? 'Pending' : 'Review required',
-      date: new Date().toISOString().slice(0, 10),
-    };
+  const handleSubmit = async () => {
+    setStatusMessage('Submitting your application...');
+    try {
+      const res = await fetch(`${API_URL}/api/applications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...profile,
+          registryStatus: registryStatus.verified ? 'verified' : 'unverified',
+          qualificationStatus: qualification.qualified ? 'qualified' : 'not-qualified',
+          status: qualification.qualified ? 'Pending' : 'Review required',
+        }),
+      });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error || 'Could not submit application');
 
-    setApplications((current) => [nextApp, ...current]);
-    setSelectedApplicationId(nextApp.id);
-    setStatusMessage(
-      qualification.qualified
-        ? 'Application submitted and sent to the admin panel for review.'
-        : 'Your application is saved, but it needs verification before approval.'
-    );
+      await mutateApplications();
+      setSelectedApplicationId(String(saved._id));
+      setStatusMessage(
+        qualification.qualified
+          ? 'Application submitted. You will receive an SMS once the admin approves or declines it.'
+          : 'Your application is saved, but it needs verification before approval. You will receive an SMS with the decision.'
+      );
+    } catch (err) {
+      setStatusMessage(`Could not submit: ${err.message}`);
+    }
   };
 
-  const updateLoanStatus = (id, status) => {
-    setApplications((current) =>
-      current.map((application) =>
-        application.id === id ? { ...application, status } : application
-      )
-    );
+  const updateLoanStatus = async (id, status) => {
+    if (!serverApplications) {
+      setAdminMessage('These are sample applications. Only applications submitted through the member portal can be approved and notified.');
+      return;
+    }
+
+    setUpdatingId(id);
+    setAdminMessage('');
+    try {
+      const res = await fetch(`${API_URL}/api/applications/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Could not update application');
+
+      await mutateApplications();
+      const name = result.application?.memberName || 'the applicant';
+      if (result.sms?.sent) {
+        setAdminMessage(`${status === 'Approved' ? 'Approved' : 'Rejected'}. SMS sent to ${name} (${result.sms.to}).`);
+      } else if (result.sms?.skipped) {
+        setAdminMessage(`Application was already ${status.toLowerCase()}. No new SMS sent.`);
+      } else {
+        setAdminMessage(`${status === 'Approved' ? 'Approved' : 'Rejected'}, but the SMS to ${name} failed: ${result.sms?.error || 'unknown error'}`);
+      }
+    } catch (err) {
+      setAdminMessage(`Update failed: ${err.message}`);
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const sendBotQuestion = () => {
@@ -470,8 +532,8 @@ function App() {
                         </span>
                       </td>
                       <td className="action-cell">
-                        <button className="approve-btn" onClick={(e) => { e.stopPropagation(); updateLoanStatus(app.id, 'Approved'); }}>Approve</button>
-                        <button className="reject-btn" onClick={(e) => { e.stopPropagation(); updateLoanStatus(app.id, 'Rejected'); }}>Reject</button>
+                        <button className="approve-btn" disabled={updatingId === app.id} onClick={(e) => { e.stopPropagation(); updateLoanStatus(app.id, 'Approved'); }}>Approve</button>
+                        <button className="reject-btn" disabled={updatingId === app.id} onClick={(e) => { e.stopPropagation(); updateLoanStatus(app.id, 'Rejected'); }}>Reject</button>
                       </td>
                     </tr>
                   ))}
@@ -516,9 +578,11 @@ function App() {
                 </div>
 
                 <div className="detail-actions">
-                  <button className="approve-btn" onClick={() => updateLoanStatus(selectedApplication.id, 'Approved')}>Accept request</button>
-                  <button className="reject-btn" onClick={() => updateLoanStatus(selectedApplication.id, 'Rejected')}>Reject request</button>
+                  <button className="approve-btn" disabled={updatingId === selectedApplication.id} onClick={() => updateLoanStatus(selectedApplication.id, 'Approved')}>Accept request</button>
+                  <button className="reject-btn" disabled={updatingId === selectedApplication.id} onClick={() => updateLoanStatus(selectedApplication.id, 'Rejected')}>Reject request</button>
                 </div>
+                {adminMessage && <p className="status-message" role="status">{adminMessage}</p>}
+                {applicationsError && <p className="status-message" role="alert">Could not reach the API: {applicationsError.message}. Showing sample data.</p>}
               </div>
             )}
           </>

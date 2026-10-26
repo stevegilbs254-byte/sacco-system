@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import { decisionMessage, sendSms, smsConfigured } from './sms.js';
 
 const app = express();
 app.use(cors());
@@ -62,25 +63,46 @@ const Application = mongoose.model('Application', ApplicationSchema);
 
 const dbReady = () => mongoose.connection.readyState === 1;
 
-if (process.env.MONGO_URI) {
-  mongoose
-    .connect(process.env.MONGO_URI)
-    .then(async () => {
-      console.log('MongoDB Connected OK');
-      const count = await Member.countDocuments().catch(() => 0);
-      if (count === 0) {
-        await Member.create({
-          name: 'Steve Gilbs',
-          savings: 45500,
-          joinedAt: monthsAgo(30),
-          hasDefaulted: false,
-        });
-      }
-    })
-    .catch((err) => console.log('MongoDB Error:', err.message));
-} else {
+let dbPromise = null;
+
+// Serverless invocations must await the connection; a fire-and-forget connect
+// leaves the first requests on a cold start using in-memory data.
+function ensureDb() {
+  if (!process.env.MONGO_URI) return Promise.resolve(false);
+  if (dbReady()) return Promise.resolve(true);
+  if (!dbPromise) {
+    dbPromise = mongoose
+      .connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 8000 })
+      .then(async () => {
+        console.log('MongoDB Connected OK');
+        const count = await Member.countDocuments().catch(() => 0);
+        if (count === 0) {
+          await Member.create({
+            name: 'Steve Gilbs',
+            savings: 45500,
+            joinedAt: monthsAgo(30),
+            hasDefaulted: false,
+          });
+        }
+        return true;
+      })
+      .catch((err) => {
+        console.log('MongoDB Error:', err.message);
+        dbPromise = null;
+        return false;
+      });
+  }
+  return dbPromise;
+}
+
+if (!process.env.MONGO_URI) {
   console.log('No MONGO_URI - using memory data');
 }
+
+app.use('/api', async (req, res, next) => {
+  await ensureDb();
+  next();
+});
 
 function monthsBetween(from, to = new Date()) {
   const d = new Date(from);
@@ -179,6 +201,8 @@ app.post('/api/applications', async (req, res) => {
       applicationDate: new Date().toISOString(),
     };
 
+    if (!dbReady()) appData._id = `mem-${Date.now()}`;
+
     if (dbReady()) {
       const saved = await Application.create(appData);
       return res.status(201).json(saved);
@@ -188,6 +212,50 @@ app.post('/api/applications', async (req, res) => {
     return res.status(201).json(appData);
   } catch (e) {
     res.status(400).json({ error: e.message });
+  }
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, database: dbReady(), sms: smsConfigured() });
+});
+
+app.patch('/api/applications/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body || {};
+
+    if (!['Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ error: 'status must be Approved or Rejected' });
+    }
+
+    let application;
+
+    if (dbReady()) {
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ error: 'Invalid application id' });
+      }
+      application = await Application.findById(id);
+      if (!application) return res.status(404).json({ error: 'Application not found' });
+      if (application.status === status) {
+        return res.json({ application, sms: { sent: false, skipped: true, error: `Already ${status}` } });
+      }
+      application.status = status;
+      await application.save();
+    } else {
+      application = applicationsCache.find((item) => String(item._id) === id);
+      if (!application) return res.status(404).json({ error: 'Application not found' });
+      if (application.status === status) {
+        return res.json({ application, sms: { sent: false, skipped: true, error: `Already ${status}` } });
+      }
+      application.status = status;
+    }
+
+    const sms = await sendSms(application.phoneNumber, decisionMessage(application, status));
+    if (!sms.sent) console.log('SMS not sent:', sms.error);
+
+    res.json({ application, sms });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
