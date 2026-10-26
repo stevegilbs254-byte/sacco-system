@@ -82,24 +82,69 @@ const ALL_MEMBERS = [
 ];
 
 const STORAGE_KEY = 'sacco-system-members';
+const MEMBER_APPLICATIONS_KEY = 'sacco-system-member-applications';
+const LOAN_APPLICATIONS_KEY = 'sacco-system-loan-applications';
 
-const getStoredMembers = () => {
+const defaultMemberApplications = [
+  {
+    id: 101,
+    name: 'David Otieno',
+    email: 'david.otieno@sacco.co.ke',
+    phone: '+254700112233',
+    branch: 'Mombasa',
+    memberId: 'SAC-2001',
+    cvName: 'david-otieno-cv.pdf',
+    status: 'Awaiting admin review',
+    credentials: { username: 'david.otieno', password: 'SACCO-7KJ4PM' },
+    initialSavings: 25000,
+    monthlySavings: 5000,
+  },
+];
+
+const defaultLoanApplications = [
+  {
+    id: 1,
+    memberName: 'Mary Wanjiku Kariuki',
+    memberId: 'SAC-1001',
+    amount: 150000,
+    purpose: 'Business expansion',
+    months: 12,
+    status: 'Pending',
+    appliedOn: '2026-10-10',
+  },
+  {
+    id: 2,
+    memberName: 'Peter Njoroge Mwangi',
+    memberId: 'SAC-1002',
+    amount: 220000,
+    purpose: 'School fees',
+    months: 18,
+    status: 'Approved',
+    appliedOn: '2026-10-05',
+  },
+];
+
+const getStoredArray = (key, fallback) => {
   if (typeof window === 'undefined') {
-    return ALL_MEMBERS;
+    return fallback;
   }
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(key);
     if (!raw) {
-      return ALL_MEMBERS;
+      return fallback;
     }
 
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length ? parsed : ALL_MEMBERS;
+    return Array.isArray(parsed) ? parsed : fallback;
   } catch (error) {
-    return ALL_MEMBERS;
+    return fallback;
   }
 };
+
+const getStoredMembers = () => getStoredArray(STORAGE_KEY, ALL_MEMBERS);
+const getStoredMemberApplications = () => getStoredArray(MEMBER_APPLICATIONS_KEY, defaultMemberApplications);
+const getStoredLoanApplications = () => getStoredArray(LOAN_APPLICATIONS_KEY, defaultLoanApplications);
 
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat('en-KE', {
@@ -189,6 +234,21 @@ function App() {
     }
   }, [allMembers]);
 
+  const [memberApplications, setMemberApplications] = useState(() => getStoredMemberApplications());
+  const [loanApplications, setLoanApplications] = useState(() => getStoredLoanApplications());
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(MEMBER_APPLICATIONS_KEY, JSON.stringify(memberApplications));
+    }
+  }, [memberApplications]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(LOAN_APPLICATIONS_KEY, JSON.stringify(loanApplications));
+    }
+  }, [loanApplications]);
+
   const [currentUser, setCurrentUser] = useState({
     name: 'Admin User',
     role: 'Administrator',
@@ -209,43 +269,6 @@ function App() {
   const [loanNotice, setLoanNotice] = useState('');
   const [newMemberForm, setNewMemberForm] = useState(emptyMemberForm);
   const [newMemberNotice, setNewMemberNotice] = useState('');
-  const [memberApplications, setMemberApplications] = useState([
-    {
-      id: 101,
-      name: 'David Otieno',
-      email: 'david.otieno@sacco.co.ke',
-      phone: '+254700112233',
-      branch: 'Mombasa',
-      memberId: 'SAC-2001',
-      cvName: 'david-otieno-cv.pdf',
-      status: 'Awaiting admin review',
-      credentials: { username: 'david.otieno', password: 'SACCO-7KJ4PM' },
-      initialSavings: 25000,
-      monthlySavings: 5000,
-    },
-  ]);
-  const [loanApplications, setLoanApplications] = useState([
-    {
-      id: 1,
-      memberName: 'Mary Wanjiku Kariuki',
-      memberId: 'SAC-1001',
-      amount: 150000,
-      purpose: 'Business expansion',
-      months: 12,
-      status: 'Pending',
-      appliedOn: '2026-10-10',
-    },
-    {
-      id: 2,
-      memberName: 'Peter Njoroge Mwangi',
-      memberId: 'SAC-1002',
-      amount: 220000,
-      purpose: 'School fees',
-      months: 18,
-      status: 'Approved',
-      appliedOn: '2026-10-05',
-    },
-  ]);
 
   const memberProfile = loginRole === 'member' ? defaultMemberProfile : selectedMember || defaultMemberProfile;
   const isAdmin = loginRole === 'admin';
