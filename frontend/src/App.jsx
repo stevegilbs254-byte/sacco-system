@@ -1475,6 +1475,7 @@ const styles = {
     borderRadius: '16px',
     padding: '18px 18px 16px',
     boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
+    overflow: 'hidden',
   },
   summaryLabel: {
     color: '#94a3b8',
@@ -1482,9 +1483,12 @@ const styles = {
     marginBottom: '12px',
   },
   summaryValue: {
-    fontSize: '30px',
+    fontSize: 'clamp(18px, 2vw, 30px)',
     fontWeight: 700,
     color: '#f8fafc',
+    lineHeight: 1.2,
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word',
   },
   smallStatsRow: {
     display: 'grid',
@@ -1497,6 +1501,7 @@ const styles = {
     borderRadius: '16px',
     padding: '18px',
     boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
+    overflow: 'hidden',
   },
   statLabel: {
     color: '#94a3b8',
@@ -1504,8 +1509,11 @@ const styles = {
     marginBottom: '10px',
   },
   statValue: {
-    fontSize: '24px',
+    fontSize: 'clamp(18px, 1.8vw, 24px)',
     fontWeight: 700,
+    lineHeight: 1.25,
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word',
   },
   filterBar: {
     display: 'flex',
@@ -1650,6 +1658,7 @@ const styles = {
     border: '1px solid rgba(148, 163, 184, 0.18)',
     borderRadius: '12px',
     padding: '12px',
+    overflow: 'hidden',
   },
   amountLabel: {
     color: '#94a3b8',
@@ -1657,8 +1666,11 @@ const styles = {
     marginBottom: '6px',
   },
   amountValue: {
-    fontSize: '18px',
+    fontSize: 'clamp(16px, 1.7vw, 18px)',
     fontWeight: 700,
+    lineHeight: 1.25,
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word',
   },
   emptyState: {
     background: 'rgba(15, 23, 42, 0.8)',
