@@ -1,775 +1,692 @@
 import { useMemo, useState } from 'react';
-import './App.css';
 
-const initialMembers = [
+const ALL_MEMBERS = [
   {
     id: 1,
-    name: 'Steve Gilbs',
-    email: 'demo@sacco.co.ke',
-    country: 'Kenya',
+    name: 'Mary Wanjiku Kariuki',
+    email: 'mary.kariuki@sacco.co.ke',
     phone: '+254712345678',
-    joinedAt: '2024-01-15',
-    savings: 45500,
-    share: 12000,
-    interest: 2450,
-    contributionHistory: [
-      { month: 'Sep 2026', amount: 5000 },
-      { month: 'Oct 2026', amount: 6600 },
-      { month: 'Nov 2026', amount: 7500 },
-    ],
-  },
-];
-
-const initialEmployees = [
-  { id: 1, name: 'Alex Njoroge', position: 'Loan Committee Chair', country: 'Kenya' },
-  { id: 2, name: 'Mary Wanjiku', position: 'Operations Manager', country: 'Kenya' },
-];
-
-const initialLoans = [
-  {
-    id: 1,
-    memberName: 'Steve Gilbs',
-    memberPosition: 'Treasurer',
-    purpose: 'School fees',
-    amount: 120000,
-    contribution: 45500,
-    status: 'Approved',
-    date: '2026-10-20',
+    memberId: 'SAC-1001',
+    status: 'Active',
+    savings: 185000,
+    shares: 60000,
+    loan: 120000,
+    joined: '2022-01-12',
+    branch: 'Nairobi Central',
   },
   {
     id: 2,
-    memberName: 'Jane Wanjiku',
-    memberPosition: 'Member',
-    purpose: 'Business expansion',
-    amount: 95000,
-    contribution: 38000,
-    status: 'Pending',
-    date: '2026-10-22',
+    name: 'Peter Njoroge Mwangi',
+    email: 'peter.mwangi@sacco.co.ke',
+    phone: '+254723456789',
+    memberId: 'SAC-1002',
+    status: 'Active',
+    savings: 240000,
+    shares: 80000,
+    loan: 150000,
+    joined: '2021-09-05',
+    branch: 'Kiambu',
   },
   {
     id: 3,
-    memberName: 'Paul Otieno',
-    memberPosition: 'Secretary',
-    purpose: 'Emergency fund',
-    amount: 70000,
-    contribution: 27000,
-    status: 'Reviewed',
-    date: '2026-10-23',
+    name: 'Grace Achieng Otieno',
+    email: 'grace.otieno@sacco.co.ke',
+    phone: '+254734567890',
+    memberId: 'SAC-1003',
+    status: 'Pending',
+    savings: 95000,
+    shares: 25000,
+    loan: 0,
+    joined: '2024-03-20',
+    branch: 'Kisumu',
+  },
+  {
+    id: 4,
+    name: 'Joseph Kiptoo Langat',
+    email: 'joseph.langat@sacco.co.ke',
+    phone: '+254745678901',
+    memberId: 'SAC-1004',
+    status: 'Active',
+    savings: 310000,
+    shares: 90000,
+    loan: 220000,
+    joined: '2020-11-18',
+    branch: 'Eldoret',
+  },
+  {
+    id: 5,
+    name: 'Annastacia Muthoni',
+    email: 'annastacia.muthoni@sacco.co.ke',
+    phone: '+254756789012',
+    memberId: 'SAC-1005',
+    status: 'Inactive',
+    savings: 65000,
+    shares: 18000,
+    loan: 0,
+    joined: '2019-06-10',
+    branch: 'Nakuru',
+  },
+  {
+    id: 6,
+    name: 'Samson Obare Ouma',
+    email: 'samson.ouma@sacco.co.ke',
+    phone: '+254767890123',
+    memberId: 'SAC-1006',
+    status: 'Active',
+    savings: 205000,
+    shares: 70000,
+    loan: 98000,
+    joined: '2023-02-14',
+    branch: 'Mombasa',
   },
 ];
 
-const defaultLoanApplication = {
-  amount: '',
-  purpose: 'School fees',
-  phoneNumber: '+254712345678',
-};
-
-const defaultMemberForm = {
-  name: '',
-  email: '',
-  phone: '',
-  country: 'Kenya',
-  idNumber: '',
-  password: '',
-};
-
-const defaultContribution = {
-  amount: '',
-  month: 'October 2026',
-};
-
-const defaultLogin = {
-  email: '',
-  password: '',
-  country: 'Kenya',
-};
-
-const chartLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-const chartSeries = [18, 32, 40, 58, 75, 98];
-
-const formatCurrency = (value) =>
+const formatCurrency = (value = 0) =>
   new Intl.NumberFormat('en-KE', {
     style: 'currency',
     currency: 'KES',
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
 
-const toNumber = (value) => {
-  const parsed = Number(value || 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+const summaryCards = [
+  { label: 'Total Members', value: ALL_MEMBERS.length, tone: '#4f46e5' },
+  { label: 'Active Members', value: ALL_MEMBERS.filter((m) => m.status === 'Active').length, tone: '#10b981' },
+  { label: 'Pending', value: ALL_MEMBERS.filter((m) => m.status === 'Pending').length, tone: '#f59e0b' },
+  { label: 'Inactive', value: ALL_MEMBERS.filter((m) => m.status === 'Inactive').length, tone: '#ef4444' },
+];
 
 function App() {
-  const [login, setLogin] = useState(defaultLogin);
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [page, setPage] = useState('member');
-  const [notification, setNotification] = useState('');
-  const [members, setMembers] = useState(initialMembers);
-  const [employees, setEmployees] = useState(initialEmployees);
-  const [newMemberForm, setNewMemberForm] = useState(defaultMemberForm);
-  const [contributionForm, setContributionForm] = useState(defaultContribution);
-  const [loanForm, setLoanForm] = useState(defaultLoanApplication);
-  const [loanQueue, setLoanQueue] = useState(initialLoans);
-  const [selectedLoanId, setSelectedLoanId] = useState(initialLoans[0]?.id ?? null);
-  const [employeeForm, setEmployeeForm] = useState({ name: '', position: '', country: 'Kenya' });
+  const [currentUser, setCurrentUser] = useState({
+    name: 'Admin User',
+    role: 'Administrator',
+  });
+  const [screen, setScreen] = useState('dashboard');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [selectedMember, setSelectedMember] = useState(ALL_MEMBERS[0]);
 
-  const currentMember = useMemo(() => members[0], [members]);
-  const selectedLoan = useMemo(
-    () => loanQueue.find((loan) => loan.id === selectedLoanId) || loanQueue[0],
-    [loanQueue, selectedLoanId]
-  );
+  const visibleMembers = useMemo(() => {
+    return ALL_MEMBERS.filter((member) => {
+      const matchesSearch =
+        member.name.toLowerCase().includes(search.toLowerCase()) ||
+        member.memberId.toLowerCase().includes(search.toLowerCase()) ||
+        member.email.toLowerCase().includes(search.toLowerCase());
 
-  const eligibleLoan = currentMember.savings * 3;
-  const totalContributions = members.reduce((sum, member) => sum + Number(member.savings || 0), 0);
-  const totalShare = members.reduce((sum, member) => sum + Number(member.share || 0), 0);
+      const matchesStatus = statusFilter === 'All' || member.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [search, statusFilter]);
 
-  const loginMember = () => {
-    const email = login.email.trim();
-    const password = login.password.trim();
-
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const isValidPassword = password.length >= 4;
-
-    if (isValidEmail && isValidPassword) {
-      setLoggedIn(true);
-      setPage('member');
-      setNotification('Welcome back. Your SACCO dashboard is ready.');
-      return;
-    }
-
-    setNotification('Please enter a valid email and password to continue.');
-  };
-
-  const addNewMember = () => {
-    if (!newMemberForm.name || !newMemberForm.email || !newMemberForm.phone || !newMemberForm.idNumber || !newMemberForm.password) {
-      setNotification('Please complete the new member form before saving.');
-      return;
-    }
-
-    const nextMember = {
-      id: Date.now(),
-      name: newMemberForm.name,
-      email: newMemberForm.email,
-      country: newMemberForm.country,
-      phone: newMemberForm.phone,
-      joinedAt: new Date().toISOString().slice(0, 10),
-      savings: 0,
-      share: 0,
-      interest: 0,
-      contributionHistory: [],
-    };
-
-    setMembers((current) => [nextMember, ...current]);
-    setNewMemberForm(defaultMemberForm);
-    setPage('member');
-    setNotification('New member has been added successfully.');
-  };
-
-  const addContribution = () => {
-    const amount = Number(contributionForm.amount || 0);
-    if (!amount || amount <= 0) {
-      setNotification('Please enter a valid monthly contribution amount.');
-      return;
-    }
-
-    const nextSavings = currentMember.savings + amount;
-    const nextShare = currentMember.share + amount * 0.1;
-    const nextInterest = currentMember.interest + amount * 0.06;
-
-    setMembers((current) =>
-      current.map((member) =>
-        member.id === currentMember.id
-          ? {
-              ...member,
-              savings: nextSavings,
-              share: nextShare,
-              interest: nextInterest,
-              contributionHistory: [
-                { month: contributionForm.month, amount },
-                ...member.contributionHistory,
-              ],
-            }
-          : member
-      )
-    );
-
-    setContributionForm(defaultContribution);
-    setNotification(`Contribution of ${formatCurrency(amount)} has been recorded.`);
-  };
-
-  const sendWhatsAppMessage = async (phoneNumber, text) => {
-    try {
-      await fetch('http://localhost:10000/api/notifications/whatsapp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, message: text }),
-      });
-    } catch (error) {
-      console.log('WhatsApp simulation:', text);
-    }
-  };
-
-  const applyForLoan = async () => {
-    const amount = Number(loanForm.amount || 0);
-    if (!amount || amount <= 0) {
-      setNotification('Please enter a valid loan amount.');
-      return;
-    }
-
-    const pendingLoan = {
-      id: Date.now(),
-      memberName: currentMember.name,
-      memberPosition: 'Member',
-      purpose: loanForm.purpose,
-      amount,
-      contribution: currentMember.savings,
-      status: 'Pending',
-      date: new Date().toISOString().slice(0, 10),
-    };
-
-    setLoanQueue((current) => [pendingLoan, ...current]);
-    setSelectedLoanId(pendingLoan.id);
-    setLoanForm(defaultLoanApplication);
-
-    const message = `Hello ${currentMember.name}, your SACCO loan application for ${formatCurrency(amount)} is pending review. We will notify you once a decision is made.`;
-    await sendWhatsAppMessage(currentMember.phone, message);
-    setNotification('Your loan application has been submitted and a WhatsApp confirmation has been sent.');
-  };
-
-  const updateLoanStatus = (id, status) => {
-    setLoanQueue((current) =>
-      current.map((loan) => (loan.id === id ? { ...loan, status } : loan))
-    );
-
-    const loan = loanQueue.find((item) => item.id === id);
-    if (loan) {
-      const message = `Hello ${loan.memberName}, your SACCO loan request of ${formatCurrency(loan.amount)} has been ${status.toLowerCase()}.`;
-      sendWhatsAppMessage(loan.memberName === currentMember.name ? currentMember.phone : '+254700000000', message);
-    }
-  };
-
-  const addEmployee = () => {
-    if (!employeeForm.name || !employeeForm.position) {
-      setNotification('Please provide the employee name and position.');
-      return;
-    }
-
-    setEmployees((current) => [
-      ...current,
-      {
-        id: Date.now(),
-        name: employeeForm.name,
-        position: employeeForm.position,
-        country: employeeForm.country,
-      },
-    ]);
-
-    setEmployeeForm({ name: '', position: '', country: 'Kenya' });
-    setNotification('New employee has been added to the SACCO staff list.');
-  };
-
-  if (!loggedIn) {
-    return (
-      <main className="login-shell">
-        <div className="login-card">
-          <div className="login-brand">
-            <div className="brand-mark">S</div>
-            <div>
-              <p className="small-label">SACCO</p>
-              <h1>Welcome</h1>
-            </div>
-          </div>
-
-          <h2>Sign in</h2>
-          <p className="login-subtitle">Use any valid email and password to access the SACCO portal.</p>
-
-          <div className="login-form">
-            <label>
-              <span>Email</span>
-              <input
-                value={login.email}
-                onChange={(e) => setLogin((current) => ({ ...current, email: e.target.value }))}
-                placeholder="member@example.com"
-              />
-            </label>
-
-            <label>
-              <span>Password</span>
-              <input
-                type="password"
-                value={login.password}
-                onChange={(e) => setLogin((current) => ({ ...current, password: e.target.value }))}
-                placeholder="Enter any password"
-              />
-            </label>
-
-            <label>
-              <span>Country</span>
-              <select
-                value={login.country}
-                onChange={(e) => setLogin((current) => ({ ...current, country: e.target.value }))}
-              >
-                <option value="Kenya">Kenya</option>
-                <option value="Uganda">Uganda</option>
-                <option value="Tanzania">Tanzania</option>
-                <option value="Rwanda">Rwanda</option>
-              </select>
-            </label>
-
-            {notification && <p className="login-error">{notification}</p>}
-
-            <button className="primary-button" onClick={loginMember}>Login</button>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  const totalSavings = ALL_MEMBERS.reduce((sum, member) => sum + member.savings, 0);
+  const totalShares = ALL_MEMBERS.reduce((sum, member) => sum + member.shares, 0);
 
   return (
-    <main className="dashboard-shell">
-      <aside className="sidebar">
-        <div className="brand-block">
-          <div className="brand-mark">S</div>
+    <div style={styles.appShell}>
+      <aside style={styles.sidebar}>
+        <div style={styles.brandBox}>
+          <div style={styles.brandIcon}>S</div>
           <div>
-            <p className="small-label">SACCO</p>
-            <h2>MemberHub</h2>
+            <div style={styles.brandTitle}>SACCO</div>
+            <div style={styles.brandSub}>Member Portal</div>
           </div>
         </div>
 
-        <nav className="nav-menu">
-          <button className={page === 'member' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('member')}>
-            Member dashboard
+        <nav style={styles.navList}>
+          <button
+            type="button"
+            onClick={() => setScreen('dashboard')}
+            style={{ ...styles.navButton, ...(screen === 'dashboard' ? styles.navButtonActive : {}) }}
+          >
+            Dashboard
           </button>
-          <button className={page === 'new-member' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('new-member')}>
-            New member
+          <button
+            type="button"
+            onClick={() => setScreen('members')}
+            style={{ ...styles.navButton, ...(screen === 'members' ? styles.navButtonActive : {}) }}
+          >
+            All Members
           </button>
-          <button className={page === 'contribution' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('contribution')}>
-            Contributions
+          <button
+            type="button"
+            onClick={() => setScreen('loans')}
+            style={{ ...styles.navButton, ...(screen === 'loans' ? styles.navButtonActive : {}) }}
+          >
+            Loan Requests
           </button>
-          <button className={page === 'admin' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('admin')}>
-            Admin dashboard
-          </button>
-          <button className="nav-item secondary" onClick={() => setLoggedIn(false)}>
-            Logout
+          <button
+            type="button"
+            onClick={() => setScreen('reports')}
+            style={{ ...styles.navButton, ...(screen === 'reports' ? styles.navButtonActive : {}) }}
+          >
+            Reports
           </button>
         </nav>
 
-        <div className="mini-balance">
-          <span>Current savings</span>
-          <strong>{formatCurrency(currentMember.savings)}</strong>
+        <div style={styles.userBox}>
+          <div style={styles.avatar}>{currentUser.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</div>
+          <div>
+            <div style={styles.userName}>{currentUser.name}</div>
+            <div style={styles.userRole}>{currentUser.role}</div>
+          </div>
         </div>
       </aside>
 
-      <section className="main-panel">
-        {notification && <div className="system-banner">{notification}</div>}
-
-        {page === 'member' && (
+      <main style={styles.mainContent}>
+        {screen === 'dashboard' && (
           <>
-            <header className="welcome-section">
+            <header style={styles.headerRow}>
               <div>
-                <p className="eyebrow">Member private page</p>
-                <h1>Welcome, {currentMember.name} 👋</h1>
+                <p style={styles.kicker}>Overview</p>
+                <h1 style={styles.pageTitle}>SACCO Administration</h1>
               </div>
-              <div className="status-pill success">Active member</div>
+              <button type="button" style={styles.primaryButton}>+ Add Member</button>
             </header>
 
-            <div className="stats-grid">
-              <div className="stat-card accent">
-                <span>Savings</span>
-                <strong>{formatCurrency(currentMember.savings)}</strong>
+            <section style={styles.summaryGrid}>
+              {summaryCards.map((card) => (
+                <div key={card.label} style={{ ...styles.summaryCard, borderTop: `4px solid ${card.tone}` }}>
+                  <div style={styles.summaryLabel}>{card.label}</div>
+                  <div style={styles.summaryValue}>{card.value}</div>
+                </div>
+              ))}
+            </section>
+
+            <section style={styles.smallStatsRow}>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Total Savings</div>
+                <div style={styles.statValue}>{formatCurrency(totalSavings)}</div>
               </div>
-              <div className="stat-card">
-                <span>Interest</span>
-                <strong>{formatCurrency(currentMember.interest)}</strong>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Shares</div>
+                <div style={styles.statValue}>{formatCurrency(totalShares)}</div>
               </div>
-              <div className="stat-card">
-                <span>Eligible loan</span>
-                <strong>{formatCurrency(eligibleLoan)}</strong>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Outstanding Loans</div>
+                <div style={styles.statValue}>{formatCurrency(ALL_MEMBERS.reduce((sum, member) => sum + member.loan, 0))}</div>
               </div>
-              <div className="stat-card">
-                <span>SACCO share</span>
-                <strong>{formatCurrency(currentMember.share)}</strong>
+            </section>
+          </>
+        )}
+
+        {screen === 'members' && (
+          <>
+            <header style={styles.headerRow}>
+              <div>
+                <p style={styles.kicker}>Directory</p>
+                <h1 style={styles.pageTitle}>All Members</h1>
               </div>
+              <button type="button" style={styles.primaryButton}>Register New Member</button>
+            </header>
+
+            <div style={styles.filterBar}>
+              <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search member, email or ID"
+                style={styles.searchInput}
+              />
+
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                style={styles.selectInput}
+              >
+                <option value="All">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Inactive">Inactive</option>
+              </select>
             </div>
 
-            <div className="content-grid two-col-layout">
-              <div className="card">
-                <div className="card-header">
-                  <h3>Loan application</h3>
-                  <span className="chip neutral">Quick apply</span>
-                </div>
-
-                <div className="form-grid">
-                  <label>
-                    <span>Loan amount</span>
-                    <input
-                      type="number"
-                      value={loanForm.amount}
-                      onChange={(e) => setLoanForm((current) => ({ ...current, amount: e.target.value }))}
-                    />
-                  </label>
-
-                  <label>
-                    <span>Purpose</span>
-                    <input
-                      value={loanForm.purpose}
-                      onChange={(e) => setLoanForm((current) => ({ ...current, purpose: e.target.value }))}
-                    />
-                  </label>
-
-                  <label>
-                    <span>WhatsApp number</span>
-                    <input
-                      value={loanForm.phoneNumber}
-                      onChange={(e) => setLoanForm((current) => ({ ...current, phoneNumber: e.target.value }))}
-                    />
-                  </label>
-                </div>
-
-                <button className="primary-button" onClick={applyForLoan}>Apply for loan</button>
-              </div>
-
-              <div className="card">
-                <div className="card-header">
-                  <h3>Member details</h3>
-                  <span className="chip success">Verified</span>
-                </div>
-
-                <div className="member-details">
-                  <div><span>Name</span><strong>{currentMember.name}</strong></div>
-                  <div><span>Email</span><strong>{currentMember.email}</strong></div>
-                  <div><span>Country</span><strong>{currentMember.country}</strong></div>
-                  <div><span>Phone</span><strong>{currentMember.phone}</strong></div>
-                  <div><span>Joined</span><strong>{currentMember.joinedAt}</strong></div>
-                  <div><span>Balance</span><strong>{formatCurrency(currentMember.savings)}</strong></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card table-card">
-              <div className="card-header">
-                <h3>Contribution history</h3>
-                <span className="chip neutral">Recent</span>
-              </div>
-
-              <table>
-                <thead>
-                  <tr>
-                    <th>Month</th>
-                    <th>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentMember.contributionHistory.map((entry, index) => (
-                    <tr key={`${entry.month}-${index}`}>
-                      <td>{entry.month}</td>
-                      <td>{formatCurrency(entry.amount)}</td>
+            <div style={styles.membersPanel}>
+              <div style={styles.tableWrap}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Member</th>
+                      <th style={styles.th}>Member ID</th>
+                      <th style={styles.th}>Phone</th>
+                      <th style={styles.th}>Branch</th>
+                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Savings</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {visibleMembers.map((member) => (
+                      <tr
+                        key={member.id}
+                        onClick={() => setSelectedMember(member)}
+                        style={{
+                          ...styles.tr,
+                          ...(selectedMember?.id === member.id ? styles.trActive : {}),
+                        }}
+                      >
+                        <td style={styles.td}>
+                          <div style={styles.memberCell}>
+                            <div style={styles.memberAvatar}>{member.name.split(' ').slice(0, 2).map((n) => n[0]).join('')}</div>
+                            <div>
+                              <div style={styles.memberName}>{member.name}</div>
+                              <div style={styles.memberEmail}>{member.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={styles.td}>{member.memberId}</td>
+                        <td style={styles.td}>{member.phone}</td>
+                        <td style={styles.td}>{member.branch}</td>
+                        <td style={styles.td}>
+                          <span style={{ ...styles.statusPill, ...statusColor(member.status) }}>{member.status}</span>
+                        </td>
+                        <td style={styles.td}>{formatCurrency(member.savings)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={styles.detailCard}>
+                <div style={styles.detailHeader}>Member Details</div>
+                <div style={styles.detailTitle}>{selectedMember?.name}</div>
+                <div style={styles.detailMeta}>{selectedMember?.memberId} • {selectedMember?.branch}</div>
+
+                <div style={styles.detailGrid}>
+                  <div>
+                    <div style={styles.detailLabel}>Email</div>
+                    <div style={styles.detailValue}>{selectedMember?.email}</div>
+                  </div>
+                  <div>
+                    <div style={styles.detailLabel}>Phone</div>
+                    <div style={styles.detailValue}>{selectedMember?.phone}</div>
+                  </div>
+                  <div>
+                    <div style={styles.detailLabel}>Joined</div>
+                    <div style={styles.detailValue}>{selectedMember?.joined}</div>
+                  </div>
+                  <div>
+                    <div style={styles.detailLabel}>Status</div>
+                    <div style={{ ...styles.detailValue, ...statusColor(selectedMember?.status) }}>{selectedMember?.status}</div>
+                  </div>
+                </div>
+
+                <div style={styles.amountGrid}>
+                  <div style={styles.amountBox}>
+                    <div style={styles.amountLabel}>Savings</div>
+                    <div style={styles.amountValue}>{formatCurrency(selectedMember?.savings)}</div>
+                  </div>
+                  <div style={styles.amountBox}>
+                    <div style={styles.amountLabel}>Shares</div>
+                    <div style={styles.amountValue}>{formatCurrency(selectedMember?.shares)}</div>
+                  </div>
+                  <div style={styles.amountBox}>
+                    <div style={styles.amountLabel}>Loan Balance</div>
+                    <div style={styles.amountValue}>{formatCurrency(selectedMember?.loan)}</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </>
         )}
 
-        {page === 'new-member' && (
-          <div className="card full-card">
-            <div className="card-header">
-              <h3>New member registration</h3>
-              <span className="chip neutral">Create account</span>
-            </div>
-
-            <div className="form-grid three-col">
-              <label>
-                <span>Full name</span>
-                <input
-                  value={newMemberForm.name}
-                  onChange={(e) => setNewMemberForm((current) => ({ ...current, name: e.target.value }))}
-                />
-              </label>
-
-              <label>
-                <span>Email</span>
-                <input
-                  type="email"
-                  value={newMemberForm.email}
-                  onChange={(e) => setNewMemberForm((current) => ({ ...current, email: e.target.value }))}
-                />
-              </label>
-
-              <label>
-                <span>Phone</span>
-                <input
-                  value={newMemberForm.phone}
-                  onChange={(e) => setNewMemberForm((current) => ({ ...current, phone: e.target.value }))}
-                />
-              </label>
-
-              <label>
-                <span>ID number</span>
-                <input
-                  value={newMemberForm.idNumber}
-                  onChange={(e) => setNewMemberForm((current) => ({ ...current, idNumber: e.target.value }))}
-                />
-              </label>
-
-              <label>
-                <span>Country</span>
-                <select
-                  value={newMemberForm.country}
-                  onChange={(e) => setNewMemberForm((current) => ({ ...current, country: e.target.value }))}
-                >
-                  <option value="Kenya">Kenya</option>
-                  <option value="Uganda">Uganda</option>
-                  <option value="Tanzania">Tanzania</option>
-                  <option value="Rwanda">Rwanda</option>
-                </select>
-              </label>
-
-              <label>
-                <span>Password</span>
-                <input
-                  type="password"
-                  value={newMemberForm.password}
-                  onChange={(e) => setNewMemberForm((current) => ({ ...current, password: e.target.value }))}
-                />
-              </label>
-            </div>
-
-            <button className="primary-button" onClick={addNewMember}>Create member</button>
-          </div>
-        )}
-
-        {page === 'contribution' && (
-          <div className="card full-card">
-            <div className="card-header">
-              <h3>Record monthly contribution</h3>
-              <span className="chip neutral">Savings</span>
-            </div>
-
-            <div className="form-grid two-col">
-              <label>
-                <span>Contribution amount</span>
-                <input
-                  type="number"
-                  value={contributionForm.amount}
-                  onChange={(e) => setContributionForm((current) => ({ ...current, amount: e.target.value }))}
-                />
-              </label>
-
-              <label>
-                <span>Month</span>
-                <select
-                  value={contributionForm.month}
-                  onChange={(e) => setContributionForm((current) => ({ ...current, month: e.target.value }))}
-                >
-                  <option value="October 2026">October 2026</option>
-                  <option value="November 2026">November 2026</option>
-                  <option value="December 2026">December 2026</option>
-                  <option value="January 2027">January 2027</option>
-                </select>
-              </label>
-            </div>
-
-            <button className="primary-button" onClick={addContribution}>Save contribution</button>
-          </div>
-        )}
-
-        {page === 'admin' && (
+        {screen === 'loans' && (
           <>
-            <header className="admin-header">
+            <header style={styles.headerRow}>
               <div>
-                <p className="eyebrow">Admin private page</p>
-                <h1>SACCO growth dashboard</h1>
-              </div>
-              <div className="admin-user-badge">
-                <strong>Alex Njoroge</strong>
-                <span>Loan Committee Chair</span>
+                <p style={styles.kicker}>Operations</p>
+                <h1 style={styles.pageTitle}>Loan Requests</h1>
               </div>
             </header>
 
-            <div className="stats-grid admin-grid">
-              <div className="stat-card accent">
-                <span>Members</span>
-                <strong>{members.length}</strong>
-              </div>
-              <div className="stat-card">
-                <span>Monthly savings</span>
-                <strong>{formatCurrency(totalContributions)}</strong>
-              </div>
-              <div className="stat-card">
-                <span>Total share</span>
-                <strong>{formatCurrency(totalShare)}</strong>
-              </div>
-              <div className="stat-card">
-                <span>Loan requests</span>
-                <strong>{loanQueue.length}</strong>
-              </div>
-            </div>
-
-            <div className="content-grid">
-              <div className="card">
-                <div className="card-header">
-                  <h3>Add employee</h3>
-                  <span className="chip neutral">Staff</span>
-                </div>
-
-                <div className="form-grid">
-                  <label>
-                    <span>Name</span>
-                    <input
-                      value={employeeForm.name}
-                      onChange={(e) => setEmployeeForm((current) => ({ ...current, name: e.target.value }))}
-                    />
-                  </label>
-
-                  <label>
-                    <span>Position</span>
-                    <input
-                      value={employeeForm.position}
-                      onChange={(e) => setEmployeeForm((current) => ({ ...current, position: e.target.value }))}
-                    />
-                  </label>
-
-                  <label>
-                    <span>Country</span>
-                    <select
-                      value={employeeForm.country}
-                      onChange={(e) => setEmployeeForm((current) => ({ ...current, country: e.target.value }))}
-                    >
-                      <option value="Kenya">Kenya</option>
-                      <option value="Uganda">Uganda</option>
-                      <option value="Tanzania">Tanzania</option>
-                    </select>
-                  </label>
-                </div>
-
-                <button className="primary-button" onClick={addEmployee}>Add employee</button>
-
-                <div className="employee-list">
-                  {employees.map((employee) => (
-                    <div key={employee.id} className="employee-row">
-                      <div>
-                        <strong>{employee.name}</strong>
-                        <span>{employee.position}</span>
-                      </div>
-                      <small>{employee.country}</small>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="card chart-card">
-                <div className="card-header">
-                  <h3>SACCO growth</h3>
-                  <span className="chip success">+32%</span>
-                </div>
-
-                <div className="chart-box">
-                  {chartSeries.map((value, index) => (
-                    <div key={value + index} className="chart-col">
-                      <span style={{ height: `${value}%` }} />
-                      <small>{chartLabels[index]}</small>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="card admin-table-card">
-              <div className="card-header">
-                <h3>Loan approvals queue</h3>
-                <span className="chip neutral">Live</span>
-              </div>
-
-              <table>
-                <thead>
-                  <tr>
-                    <th>Member</th>
-                    <th>Position</th>
-                    <th>Contribution</th>
-                    <th>Loan</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loanQueue.map((loan) => (
-                    <tr
-                      key={loan.id}
-                      className={selectedLoanId === loan.id ? 'selected-row' : ''}
-                      onClick={() => setSelectedLoanId(loan.id)}
-                    >
-                      <td>{loan.memberName}</td>
-                      <td>{loan.memberPosition || 'Member'}</td>
-                      <td>{formatCurrency(loan.contribution || 0)}</td>
-                      <td>{formatCurrency(loan.amount || 0)}</td>
-                      <td>
-                        <span className={`table-status ${loan.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                          {loan.status}
-                        </span>
-                      </td>
-                      <td className="action-cell">
-                        <button className="approve-btn" onClick={(e) => { e.stopPropagation(); updateLoanStatus(loan.id, 'Approved'); }}>
-                          Approve
-                        </button>
-                        <button className="reject-btn" onClick={(e) => { e.stopPropagation(); updateLoanStatus(loan.id, 'Rejected'); }}>
-                          Reject
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {selectedLoan && (
-              <div className="card detail-card">
-                <div className="card-header">
-                  <h3>Selected request</h3>
-                  <span className={`chip ${selectedLoan.status === 'Approved' ? 'success' : selectedLoan.status === 'Rejected' ? 'warning' : 'neutral'}`}>
-                    {selectedLoan.status}
-                  </span>
-                </div>
-
-                <div className="detail-grid">
-                  <div>
-                    <label>Member</label>
-                    <strong>{selectedLoan.memberName}</strong>
-                  </div>
-                  <div>
-                    <label>Position</label>
-                    <strong>{selectedLoan.memberPosition || 'Member'}</strong>
-                  </div>
-                  <div>
-                    <label>Contribution</label>
-                    <strong>{formatCurrency(selectedLoan.contribution || 0)}</strong>
-                  </div>
-                  <div>
-                    <label>Loan amount</label>
-                    <strong>{formatCurrency(selectedLoan.amount || 0)}</strong>
-                  </div>
-                  <div>
-                    <label>Purpose</label>
-                    <strong>{selectedLoan.purpose}</strong>
-                  </div>
-                  <div>
-                    <label>Date</label>
-                    <strong>{selectedLoan.date}</strong>
-                  </div>
-                </div>
-
-                <div className="detail-actions">
-                  <button className="approve-btn" onClick={() => updateLoanStatus(selectedLoan.id, 'Approved')}>Accept request</button>
-                  <button className="reject-btn" onClick={() => updateLoanStatus(selectedLoan.id, 'Rejected')}>Reject request</button>
-                </div>
-              </div>
-            )}
+            <div style={styles.emptyState}>Loan management page is ready for approval workflows.</div>
           </>
         )}
-      </section>
-    </main>
+
+        {screen === 'reports' && (
+          <>
+            <header style={styles.headerRow}>
+              <div>
+                <p style={styles.kicker}>Analytics</p>
+                <h1 style={styles.pageTitle}>Reports</h1>
+              </div>
+            </header>
+
+            <div style={styles.emptyState}>Reports page will show growth, deposits, arrears, and member activity.</div>
+          </>
+        )}
+      </main>
+    </div>
   );
 }
+
+const statusColor = (status) => {
+  if (status === 'Active') return { background: '#d1fae5', color: '#065f46' };
+  if (status === 'Pending') return { background: '#fef3c7', color: '#92400e' };
+  return { background: '#fee2e2', color: '#991b1b' };
+};
+
+const styles = {
+  appShell: {
+    display: 'flex',
+    minHeight: '100vh',
+    background: '#07111f',
+    color: '#e2e8f0',
+    fontFamily: 'Inter, Segoe UI, sans-serif',
+  },
+  sidebar: {
+    width: '260px',
+    background: 'rgba(15, 23, 42, 0.92)',
+    borderRight: '1px solid rgba(148, 163, 184, 0.18)',
+    padding: '24px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
+  brandBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '28px',
+  },
+  brandIcon: {
+    width: '42px',
+    height: '42px',
+    borderRadius: '12px',
+    background: 'linear-gradient(135deg, #4f46e5, #10b981)',
+    display: 'grid',
+    placeItems: 'center',
+    fontWeight: 700,
+    color: '#fff',
+  },
+  brandTitle: {
+    fontSize: '18px',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+  },
+  brandSub: {
+    fontSize: '12px',
+    color: '#94a3b8',
+  },
+  navList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  navButton: {
+    border: 'none',
+    borderRadius: '12px',
+    background: 'transparent',
+    color: '#cbd5e1',
+    textAlign: 'left',
+    padding: '12px 14px',
+    fontSize: '15px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  navButtonActive: {
+    background: 'rgba(79, 70, 229, 0.18)',
+    color: '#fff',
+    boxShadow: 'inset 0 0 0 1px rgba(129, 140, 248, 0.35)',
+  },
+  userBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    background: 'rgba(15, 118, 110, 0.15)',
+    border: '1px solid rgba(16, 185, 129, 0.2)',
+    borderRadius: '14px',
+    padding: '12px',
+  },
+  avatar: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #3b82f6, #22c55e)',
+    display: 'grid',
+    placeItems: 'center',
+    fontWeight: 700,
+    fontSize: '13px',
+  },
+  userName: {
+    fontWeight: 700,
+    fontSize: '14px',
+  },
+  userRole: {
+    fontSize: '12px',
+    color: '#a7f3d0',
+  },
+  mainContent: {
+    flex: 1,
+    padding: '28px',
+  },
+  headerRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '20px',
+    marginBottom: '24px',
+  },
+  kicker: {
+    margin: '0 0 6px',
+    color: '#a5b4fc',
+    textTransform: 'uppercase',
+    fontSize: '12px',
+    letterSpacing: '0.12em',
+  },
+  pageTitle: {
+    margin: 0,
+    fontSize: '32px',
+    lineHeight: 1.2,
+  },
+  primaryButton: {
+    border: 'none',
+    borderRadius: '12px',
+    background: 'linear-gradient(135deg, #4f46e5, #06b6d4)',
+    color: '#fff',
+    padding: '12px 18px',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  summaryGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, minmax(160px, 1fr))',
+    gap: '16px',
+    marginBottom: '24px',
+  },
+  summaryCard: {
+    background: 'rgba(15, 23, 42, 0.8)',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    borderRadius: '16px',
+    padding: '18px 18px 16px',
+    boxShadow: '0 12px 25px rgba(2, 6, 23, 0.25)',
+  },
+  summaryLabel: {
+    color: '#94a3b8',
+    fontSize: '13px',
+    marginBottom: '12px',
+  },
+  summaryValue: {
+    fontSize: '30px',
+    fontWeight: 700,
+    color: '#f8fafc',
+  },
+  smallStatsRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(180px, 1fr))',
+    gap: '16px',
+  },
+  statCard: {
+    background: 'rgba(15, 23, 42, 0.8)',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    borderRadius: '16px',
+    padding: '18px',
+  },
+  statLabel: {
+    color: '#94a3b8',
+    fontSize: '13px',
+    marginBottom: '10px',
+  },
+  statValue: {
+    fontSize: '24px',
+    fontWeight: 700,
+  },
+  filterBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    background: 'rgba(15, 23, 42, 0.82)',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    borderRadius: '14px',
+    padding: '12px',
+    marginBottom: '18px',
+  },
+  searchInput: {
+    flex: 1,
+    background: '#0f172a',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    borderRadius: '10px',
+    color: '#e2e8f0',
+    padding: '11px 12px',
+    outline: 'none',
+  },
+  selectInput: {
+    background: '#0f172a',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    borderRadius: '10px',
+    color: '#e2e8f0',
+    padding: '11px 12px',
+    outline: 'none',
+  },
+  membersPanel: {
+    display: 'grid',
+    gridTemplateColumns: '2.1fr 1fr',
+    gap: '18px',
+    alignItems: 'start',
+  },
+  tableWrap: {
+    background: 'rgba(15, 23, 42, 0.8)',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    borderRadius: '16px',
+    overflow: 'hidden',
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+  },
+  th: {
+    textAlign: 'left',
+    padding: '14px 16px',
+    fontSize: '12px',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    background: 'rgba(15, 118, 110, 0.08)',
+  },
+  td: {
+    padding: '14px 16px',
+    borderTop: '1px solid rgba(148, 163, 184, 0.12)',
+    fontSize: '14px',
+    color: '#e2e8f0',
+  },
+  tr: {
+    cursor: 'pointer',
+    transition: 'background 0.2s ease',
+  },
+  trActive: {
+    background: 'rgba(79, 70, 229, 0.12)',
+  },
+  memberCell: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  memberAvatar: {
+    width: '34px',
+    height: '34px',
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #6d28d9, #0ea5e9)',
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: '11px',
+    fontWeight: 700,
+  },
+  memberName: {
+    fontWeight: 700,
+  },
+  memberEmail: {
+    fontSize: '12px',
+    color: '#94a3b8',
+  },
+  statusPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '6px 10px',
+    borderRadius: '999px',
+    fontSize: '12px',
+    fontWeight: 700,
+  },
+  detailCard: {
+    background: 'rgba(15, 23, 42, 0.8)',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    borderRadius: '16px',
+    padding: '20px',
+  },
+  detailHeader: {
+    color: '#a5b4fc',
+    fontSize: '12px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.12em',
+    marginBottom: '12px',
+  },
+  detailTitle: {
+    fontSize: '24px',
+    fontWeight: 700,
+    marginBottom: '6px',
+  },
+  detailMeta: {
+    color: '#94a3b8',
+    marginBottom: '22px',
+  },
+  detailGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '14px',
+    marginBottom: '22px',
+  },
+  detailLabel: {
+    color: '#94a3b8',
+    fontSize: '12px',
+    marginBottom: '6px',
+  },
+  detailValue: {
+    fontSize: '14px',
+    fontWeight: 600,
+  },
+  amountGrid: {
+    display: 'grid',
+    gap: '12px',
+  },
+  amountBox: {
+    background: '#0f172a',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    borderRadius: '12px',
+    padding: '12px',
+  },
+  amountLabel: {
+    color: '#94a3b8',
+    fontSize: '12px',
+    marginBottom: '6px',
+  },
+  amountValue: {
+    fontSize: '18px',
+    fontWeight: 700,
+  },
+  emptyState: {
+    background: 'rgba(15, 23, 42, 0.8)',
+    border: '1px solid rgba(148, 163, 184, 0.12)',
+    borderRadius: '16px',
+    padding: '30px',
+    color: '#cbd5e1',
+    fontSize: '16px',
+  },
+};
 
 export default App;
