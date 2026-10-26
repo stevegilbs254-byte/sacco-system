@@ -1,20 +1,36 @@
 import { useMemo, useState } from 'react';
-import useSWR from 'swr';
 import './App.css';
 
-const registry = [
-  { idNumber: '12345678', name: 'Steve Gilbs', yearOfBirth: '1990', phoneNumber: '0712345678' },
-  { idNumber: '87654321', name: 'Jane Wanjiku', yearOfBirth: '1988', phoneNumber: '0723456789' },
-  { idNumber: '24681357', name: 'Paul Otieno', yearOfBirth: '1995', phoneNumber: '0734567890' },
-  { idNumber: '98765432', name: 'Mary Njeri', yearOfBirth: '1992', phoneNumber: '0745678901' },
-];
-
-const adminProfile = {
-  name: 'Alex Njoroge',
-  position: 'Loan Committee Chair',
+const DEMO_USER = {
+  email: 'stevegilbs254@gamil.com',
+  password: 'steveomo254',
 };
 
-const starterApplications = [
+const initialMembers = [
+  {
+    id: 1,
+    name: 'Steve Gilbs',
+    email: 'stevegilbs254@gamil.com',
+    country: 'Kenya',
+    phone: '+254712345678',
+    joinedAt: '2024-01-15',
+    savings: 45500,
+    share: 12000,
+    interest: 2450,
+    contributionHistory: [
+      { month: 'Sep 2026', amount: 5000 },
+      { month: 'Oct 2026', amount: 6600 },
+      { month: 'Nov 2026', amount: 7500 },
+    ],
+  },
+];
+
+const initialEmployees = [
+  { id: 1, name: 'Alex Njoroge', position: 'Loan Committee Chair', country: 'Kenya' },
+  { id: 2, name: 'Mary Wanjiku', position: 'Operations Manager', country: 'Kenya' },
+];
+
+const initialLoans = [
   {
     id: 1,
     memberName: 'Steve Gilbs',
@@ -47,43 +63,34 @@ const starterApplications = [
   },
 ];
 
-const API_URL = (import.meta.env.VITE_API_URL || 'https://sacco-system-api.vercel.app').replace(/\/$/, '');
-
-const fetchJson = async (url) => {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Request failed (${res.status})`);
-  return res.json();
-};
-
-const toViewApplication = (item) => ({
-  id: String(item._id),
-  memberName: item.memberName,
-  memberPosition: 'Member',
-  phoneNumber: item.phoneNumber,
-  purpose: item.purpose,
-  amount: Number(item.requestedAmount || 0),
-  contribution: Number(item.savings || 0),
-  status: item.status || 'Pending',
-  date: String(item.applicationDate || item.createdAt || '').slice(0, 10),
-});
-
-const initialChats = [
-  { sender: 'bot', text: 'Hi! I am the SACCO assistant. Ask me about qualification rules, approval process, or loan limits.' },
-];
-
-const defaultProfile = {
-  memberName: 'Steve Gilbs',
-  idNumber: '12345678',
-  phoneNumber: '0712345678',
-  yearOfBirth: '1990',
-  yearsInSacco: '12',
-  savings: '45000',
-  requestedAmount: '120000',
+const defaultLoanApplication = {
+  amount: '',
   purpose: 'School fees',
-  hasDefaulted: false,
-  hasLoanOpen: false,
-  isRegularSaver: true,
+  phoneNumber: '+254712345678',
 };
+
+const defaultMemberForm = {
+  name: '',
+  email: '',
+  phone: '',
+  country: 'Kenya',
+  idNumber: '',
+  password: '',
+};
+
+const defaultContribution = {
+  amount: '',
+  month: 'October 2026',
+};
+
+const defaultLogin = {
+  email: '',
+  password: '',
+  country: 'Kenya',
+};
+
+const chartLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+const chartSeries = [18, 32, 40, 58, 75, 98];
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('en-KE', {
@@ -97,187 +104,223 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-function verifyAgainstRegistry(profile) {
-  const match = registry.find(
-    (item) =>
-      item.idNumber === String(profile.idNumber || '').trim() &&
-      item.name.trim().toLowerCase() === String(profile.memberName || '').trim().toLowerCase() &&
-      item.yearOfBirth === String(profile.yearOfBirth || '').trim() &&
-      item.phoneNumber === String(profile.phoneNumber || '').trim()
-  );
-
-  return match
-    ? { verified: true, message: 'Registration confirmed. We found your record in the national registry.' }
-    : { verified: false, message: 'We could not match your details to the registry. Please review your records.' };
-}
-
-function getQualification(profile) {
-  const months = toNumber(profile.yearsInSacco);
-  const savings = toNumber(profile.savings);
-  const requestedAmount = toNumber(profile.requestedAmount);
-  const limit = months >= 24 ? savings * 4 : savings * 3;
-
-  if (profile.hasDefaulted) {
-    return {
-      qualified: false,
-      reason: 'A previous default is still recorded, so the application cannot proceed.',
-      limit,
-    };
-  }
-
-  if (months < 6) {
-    return {
-      qualified: false,
-      reason: 'You need to be a member for at least 6 months before you can apply.',
-      limit,
-    };
-  }
-
-  if (requestedAmount > limit) {
-    return {
-      qualified: false,
-      reason: `The requested loan exceeds your limit of ${formatCurrency(limit)}.`,
-      limit,
-    };
-  }
-
-  return {
-    qualified: true,
-    reason: 'You qualify for the requested loan based on your SACCO record and savings pattern.',
-    limit,
-  };
-}
-
 function App() {
-  const [profile, setProfile] = useState(defaultProfile);
-  const { data: serverApplications, error: applicationsError, mutate: mutateApplications } = useSWR(
-    `${API_URL}/api/applications`,
-    fetchJson
+  const [login, setLogin] = useState(defaultLogin);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [page, setPage] = useState('member');
+  const [notification, setNotification] = useState('');
+  const [members, setMembers] = useState(initialMembers);
+  const [employees, setEmployees] = useState(initialEmployees);
+  const [newMemberForm, setNewMemberForm] = useState(defaultMemberForm);
+  const [contributionForm, setContributionForm] = useState(defaultContribution);
+  const [loanForm, setLoanForm] = useState(defaultLoanApplication);
+  const [loanQueue, setLoanQueue] = useState(initialLoans);
+  const [selectedLoanId, setSelectedLoanId] = useState(initialLoans[0]?.id ?? null);
+  const [employeeForm, setEmployeeForm] = useState({ name: '', position: '', country: 'Kenya' });
+
+  const currentMember = useMemo(() => members[0], [members]);
+  const selectedLoan = useMemo(
+    () => loanQueue.find((loan) => loan.id === selectedLoanId) || loanQueue[0],
+    [loanQueue, selectedLoanId]
   );
-  const applications = useMemo(
-    () => (serverApplications ? serverApplications.map(toViewApplication) : starterApplications),
-    [serverApplications]
-  );
-  const [selectedApplicationId, setSelectedApplicationId] = useState(null);
-  const [adminMessage, setAdminMessage] = useState('');
-  const [updatingId, setUpdatingId] = useState(null);
-  const [view, setView] = useState('choose');
-  const [chatMessages, setChatMessages] = useState(initialChats);
-  const [chatInput, setChatInput] = useState('');
-  const [statusMessage, setStatusMessage] = useState('');
 
-  const registryStatus = useMemo(() => verifyAgainstRegistry(profile), [profile]);
-  const qualification = useMemo(() => getQualification(profile), [profile]);
-  const selectedApplication = applications.find((item) => item.id === selectedApplicationId) || applications[0];
+  const eligibleLoan = currentMember.savings * 3;
+  const totalContributions = members.reduce((sum, member) => sum + Number(member.savings || 0), 0);
+  const totalShare = members.reduce((sum, member) => sum + Number(member.share || 0), 0);
 
-  const updateField = (key, value) => setProfile((current) => ({ ...current, [key]: value }));
+  const loginMember = () => {
+    const email = login.email.trim().toLowerCase();
+    const password = login.password.trim();
 
-  const handleSubmit = async () => {
-    setStatusMessage('Submitting your application...');
-    try {
-      const res = await fetch(`${API_URL}/api/applications`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...profile,
-          registryStatus: registryStatus.verified ? 'verified' : 'unverified',
-          qualificationStatus: qualification.qualified ? 'qualified' : 'not-qualified',
-          status: qualification.qualified ? 'Pending' : 'Review required',
-        }),
-      });
-      const saved = await res.json();
-      if (!res.ok) throw new Error(saved.error || 'Could not submit application');
-
-      await mutateApplications();
-      setSelectedApplicationId(String(saved._id));
-      setStatusMessage(
-        qualification.qualified
-          ? 'Application submitted. You will receive an SMS once the admin approves or declines it.'
-          : 'Your application is saved, but it needs verification before approval. You will receive an SMS with the decision.'
-      );
-    } catch (err) {
-      setStatusMessage(`Could not submit: ${err.message}`);
-    }
-  };
-
-  const updateLoanStatus = async (id, status) => {
-    if (!serverApplications) {
-      setAdminMessage('These are sample applications. Only applications submitted through the member portal can be approved and notified.');
+    if (email === DEMO_USER.email.toLowerCase() && password === DEMO_USER.password) {
+      setLoggedIn(true);
+      setPage('member');
+      setNotification('Welcome back. Your SACCO dashboard is ready.');
       return;
     }
 
-    setUpdatingId(id);
-    setAdminMessage('');
+    setNotification('Invalid login. Please use the demo credentials provided.');
+  };
+
+  const addNewMember = () => {
+    if (!newMemberForm.name || !newMemberForm.email || !newMemberForm.phone || !newMemberForm.idNumber || !newMemberForm.password) {
+      setNotification('Please complete the new member form before saving.');
+      return;
+    }
+
+    const nextMember = {
+      id: Date.now(),
+      name: newMemberForm.name,
+      email: newMemberForm.email,
+      country: newMemberForm.country,
+      phone: newMemberForm.phone,
+      joinedAt: new Date().toISOString().slice(0, 10),
+      savings: 0,
+      share: 0,
+      interest: 0,
+      contributionHistory: [],
+    };
+
+    setMembers((current) => [nextMember, ...current]);
+    setNewMemberForm(defaultMemberForm);
+    setPage('member');
+    setNotification('New member has been added successfully.');
+  };
+
+  const addContribution = () => {
+    const amount = Number(contributionForm.amount || 0);
+    if (!amount || amount <= 0) {
+      setNotification('Please enter a valid monthly contribution amount.');
+      return;
+    }
+
+    const nextSavings = currentMember.savings + amount;
+    const nextShare = currentMember.share + amount * 0.1;
+    const nextInterest = currentMember.interest + amount * 0.06;
+
+    setMembers((current) =>
+      current.map((member) =>
+        member.id === currentMember.id
+          ? {
+              ...member,
+              savings: nextSavings,
+              share: nextShare,
+              interest: nextInterest,
+              contributionHistory: [
+                { month: contributionForm.month, amount },
+                ...member.contributionHistory,
+              ],
+            }
+          : member
+      )
+    );
+
+    setContributionForm(defaultContribution);
+    setNotification(`Contribution of ${formatCurrency(amount)} has been recorded.`);
+  };
+
+  const sendWhatsAppMessage = async (phoneNumber, text) => {
     try {
-      const res = await fetch(`${API_URL}/api/applications/${id}/status`, {
-        method: 'PATCH',
+      await fetch('http://localhost:10000/api/notifications/whatsapp', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ phoneNumber, message: text }),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Could not update application');
-
-      await mutateApplications();
-      const name = result.application?.memberName || 'the applicant';
-      if (result.sms?.sent) {
-        setAdminMessage(`${status === 'Approved' ? 'Approved' : 'Rejected'}. SMS sent to ${name} (${result.sms.to}).`);
-      } else if (result.sms?.skipped) {
-        setAdminMessage(`Application was already ${status.toLowerCase()}. No new SMS sent.`);
-      } else {
-        setAdminMessage(`${status === 'Approved' ? 'Approved' : 'Rejected'}, but the SMS to ${name} failed: ${result.sms?.error || 'unknown error'}`);
-      }
-    } catch (err) {
-      setAdminMessage(`Update failed: ${err.message}`);
-    } finally {
-      setUpdatingId(null);
+    } catch (error) {
+      console.log('WhatsApp simulation:', text);
     }
   };
 
-  const sendBotQuestion = () => {
-    const text = chatInput.trim();
-    if (!text) return;
-
-    const lower = text.toLowerCase();
-    let answer = 'I can help with loan limits, approval steps, and member verification.';
-
-    if (lower.includes('loan') || lower.includes('limit')) {
-      answer = `Your current loan limit is ${formatCurrency(qualification.limit)} based on your savings and membership period.`;
-    } else if (lower.includes('approve') || lower.includes('process')) {
-      answer = 'Applications are reviewed for member identity, savings history, default status, and whether the requested amount is within the approved limit.';
-    } else if (lower.includes('how') && lower.includes('apply')) {
-      answer = 'Fill in your member details, confirm your identity, request an amount, and submit the application for admin review.';
-    } else if (lower.includes('member') || lower.includes('id')) {
-      answer = `Your member profile shows ${profile.memberName} with ID ${profile.idNumber}. Registration status is ${registryStatus.verified ? 'verified' : 'pending review'}.`;
+  const applyForLoan = async () => {
+    const amount = Number(loanForm.amount || 0);
+    if (!amount || amount <= 0) {
+      setNotification('Please enter a valid loan amount.');
+      return;
     }
 
-    setChatMessages((current) => [...current, { sender: 'user', text }, { sender: 'bot', text: answer }]);
-    setChatInput('');
+    const pendingLoan = {
+      id: Date.now(),
+      memberName: currentMember.name,
+      memberPosition: 'Member',
+      purpose: loanForm.purpose,
+      amount,
+      contribution: currentMember.savings,
+      status: 'Pending',
+      date: new Date().toISOString().slice(0, 10),
+    };
+
+    setLoanQueue((current) => [pendingLoan, ...current]);
+    setSelectedLoanId(pendingLoan.id);
+    setLoanForm(defaultLoanApplication);
+
+    const message = `Hello ${currentMember.name}, your SACCO loan application for ${formatCurrency(amount)} is pending review. We will notify you once a decision is made.`;
+    await sendWhatsAppMessage(currentMember.phone, message);
+    setNotification('Your loan application has been submitted and a WhatsApp confirmation has been sent.');
   };
 
-  const totalApproved = applications.filter((item) => item.status === 'Approved').length;
-  const pendingReviews = applications.filter((item) => item.status === 'Pending' || item.status === 'Review required' || item.status === 'Reviewed').length;
-  const totalAmount = applications.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const updateLoanStatus = (id, status) => {
+    setLoanQueue((current) =>
+      current.map((loan) => (loan.id === id ? { ...loan, status } : loan))
+    );
 
-  if (view === 'choose') {
+    const loan = loanQueue.find((item) => item.id === id);
+    if (loan) {
+      const message = `Hello ${loan.memberName}, your SACCO loan request of ${formatCurrency(loan.amount)} has been ${status.toLowerCase()}.`;
+      sendWhatsAppMessage(loan.memberName === currentMember.name ? currentMember.phone : '+254700000000', message);
+    }
+  };
+
+  const addEmployee = () => {
+    if (!employeeForm.name || !employeeForm.position) {
+      setNotification('Please provide the employee name and position.');
+      return;
+    }
+
+    setEmployees((current) => [
+      ...current,
+      {
+        id: Date.now(),
+        name: employeeForm.name,
+        position: employeeForm.position,
+        country: employeeForm.country,
+      },
+    ]);
+
+    setEmployeeForm({ name: '', position: '', country: 'Kenya' });
+    setNotification('New employee has been added to the SACCO staff list.');
+  };
+
+  if (!loggedIn) {
     return (
-      <main className="role-select-shell">
-        <div className="role-select-card">
-          <p className="eyebrow">Welcome to SACCO</p>
-          <h1>Choose your portal</h1>
-          <p className="role-subtitle">Select how you want to continue.</p>
+      <main className="login-shell">
+        <div className="login-card">
+          <div className="login-brand">
+            <div className="brand-mark">S</div>
+            <div>
+              <p className="small-label">SACCO</p>
+              <h1>Welcome</h1>
+            </div>
+          </div>
 
-          <div className="role-grid">
-            <button className="portal-button member-button" onClick={() => setView('member')}>
-              <span className="portal-icon">👤</span>
-              <span>Member</span>
-              <small>Apply for a loan and manage your profile</small>
-            </button>
+          <h2>Sign in</h2>
+          <p className="login-subtitle">Use the demo account to access the SACCO portal.</p>
 
-            <button className="portal-button admin-button" onClick={() => setView('admin')}>
-              <span className="portal-icon">🛡️</span>
-              <span>Admin</span>
-              <small>Review applications and approve or reject</small>
-            </button>
+          <div className="login-form">
+            <label>
+              <span>Email</span>
+              <input
+                value={login.email}
+                onChange={(e) => setLogin((current) => ({ ...current, email: e.target.value }))}
+                placeholder="stevegilbs254@gamil.com"
+              />
+            </label>
+
+            <label>
+              <span>Password</span>
+              <input
+                type="password"
+                value={login.password}
+                onChange={(e) => setLogin((current) => ({ ...current, password: e.target.value }))}
+                placeholder="steveomo254"
+              />
+            </label>
+
+            <label>
+              <span>Country</span>
+              <select
+                value={login.country}
+                onChange={(e) => setLogin((current) => ({ ...current, country: e.target.value }))}
+              >
+                <option value="Kenya">Kenya</option>
+                <option value="Uganda">Uganda</option>
+                <option value="Tanzania">Tanzania</option>
+                <option value="Rwanda">Rwanda</option>
+              </select>
+            </label>
+
+            {notification && <p className="login-error">{notification}</p>}
+
+            <button className="primary-button" onClick={loginMember}>Login</button>
           </div>
         </div>
       </main>
@@ -296,215 +339,348 @@ function App() {
         </div>
 
         <nav className="nav-menu">
-          <button className={view === 'member' ? 'nav-item active' : 'nav-item'} onClick={() => setView('member')}>
-            Member portal
+          <button className={page === 'member' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('member')}>
+            Member dashboard
           </button>
-          <button className={view === 'admin' ? 'nav-item active' : 'nav-item'} onClick={() => setView('admin')}>
+          <button className={page === 'new-member' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('new-member')}>
+            New member
+          </button>
+          <button className={page === 'contribution' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('contribution')}>
+            Contributions
+          </button>
+          <button className={page === 'admin' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('admin')}>
             Admin dashboard
           </button>
-          <button className="nav-item secondary" onClick={() => setView('choose')}>
-            Switch portal
+          <button className="nav-item secondary" onClick={() => setLoggedIn(false)}>
+            Logout
           </button>
         </nav>
 
-        <div className="admin-mini-card">
-          <span className="admin-label">Admin on duty</span>
-          <strong>{adminProfile.name}</strong>
-          <small>{adminProfile.position}</small>
-        </div>
-
         <div className="mini-balance">
-          <span>Total portfolio</span>
-          <strong>{formatCurrency(totalAmount)}</strong>
+          <span>Current savings</span>
+          <strong>{formatCurrency(currentMember.savings)}</strong>
         </div>
       </aside>
 
       <section className="main-panel">
-        {view === 'member' ? (
+        {notification && <div className="system-banner">{notification}</div>}
+
+        {page === 'member' && (
           <>
             <header className="welcome-section">
-              <div className="welcome-copy">
-                <p className="eyebrow">Welcome back</p>
-                <h1>Welcome, {profile.memberName} 👋</h1>
-                <p className="welcome-text">
-                  Your SACCO journey is almost ready. Review your details, confirm registration, and submit your application.
-                </p>
+              <div>
+                <p className="eyebrow">Member private page</p>
+                <h1>Welcome, {currentMember.name} 👋</h1>
               </div>
-
-              <div className="cartoon-wrap" aria-label="Animated welcome mascot">
-                <div className="cartoon">
-                  <div className="face">
-                    <span className="eye left" />
-                    <span className="eye right" />
-                    <span className="smile" />
-                  </div>
-                  <div className="body" />
-                  <div className="arm left" />
-                  <div className="arm right" />
-                </div>
-              </div>
+              <div className="status-pill success">Active member</div>
             </header>
 
             <div className="stats-grid">
               <div className="stat-card accent">
-                <span>Member savings</span>
-                <strong>{formatCurrency(profile.savings)}</strong>
+                <span>Savings</span>
+                <strong>{formatCurrency(currentMember.savings)}</strong>
               </div>
               <div className="stat-card">
-                <span>Loan limit</span>
-                <strong>{formatCurrency(qualification.limit)}</strong>
+                <span>Interest</span>
+                <strong>{formatCurrency(currentMember.interest)}</strong>
               </div>
               <div className="stat-card">
-                <span>Approved</span>
-                <strong>{totalApproved}</strong>
+                <span>Eligible loan</span>
+                <strong>{formatCurrency(eligibleLoan)}</strong>
               </div>
               <div className="stat-card">
-                <span>Pending</span>
-                <strong>{pendingReviews}</strong>
+                <span>SACCO share</span>
+                <strong>{formatCurrency(currentMember.share)}</strong>
               </div>
             </div>
 
-            <div className="content-grid">
-              <div className="card form-card">
+            <div className="content-grid two-col-layout">
+              <div className="card">
                 <div className="card-header">
-                  <h3>Qualification check</h3>
-                  <span className={qualification.qualified ? 'chip success' : 'chip warning'}>
-                    {qualification.qualified ? 'Qualified' : 'Review'}
-                  </span>
+                  <h3>Loan application</h3>
+                  <span className="chip neutral">Quick apply</span>
                 </div>
 
-                <div className="two-col">
+                <div className="form-grid">
                   <label>
-                    <span>Member name</span>
-                    <input value={profile.memberName} onChange={(e) => updateField('memberName', e.target.value)} />
-                  </label>
-
-                  <label>
-                    <span>ID number</span>
-                    <input value={profile.idNumber} onChange={(e) => updateField('idNumber', e.target.value)} />
-                  </label>
-
-                  <label>
-                    <span>Phone number</span>
-                    <input value={profile.phoneNumber} onChange={(e) => updateField('phoneNumber', e.target.value)} />
-                  </label>
-
-                  <label>
-                    <span>Year of birth</span>
-                    <input value={profile.yearOfBirth} onChange={(e) => updateField('yearOfBirth', e.target.value)} />
-                  </label>
-
-                  <label>
-                    <span>Years in SACCO</span>
-                    <select value={profile.yearsInSacco} onChange={(e) => updateField('yearsInSacco', e.target.value)}>
-                      <option value="3">Less than 6 months</option>
-                      <option value="6">6 months</option>
-                      <option value="12">1 year</option>
-                      <option value="24">2 years</option>
-                      <option value="36">3+ years</option>
-                    </select>
-                  </label>
-
-                  <label>
-                    <span>Savings balance</span>
-                    <input type="number" value={profile.savings} onChange={(e) => updateField('savings', e.target.value)} />
-                  </label>
-
-                  <label>
-                    <span>Requested amount</span>
-                    <input type="number" value={profile.requestedAmount} onChange={(e) => updateField('requestedAmount', e.target.value)} />
+                    <span>Loan amount</span>
+                    <input
+                      type="number"
+                      value={loanForm.amount}
+                      onChange={(e) => setLoanForm((current) => ({ ...current, amount: e.target.value }))}
+                    />
                   </label>
 
                   <label>
                     <span>Purpose</span>
-                    <input value={profile.purpose} onChange={(e) => updateField('purpose', e.target.value)} />
+                    <input
+                      value={loanForm.purpose}
+                      onChange={(e) => setLoanForm((current) => ({ ...current, purpose: e.target.value }))}
+                    />
+                  </label>
+
+                  <label>
+                    <span>WhatsApp number</span>
+                    <input
+                      value={loanForm.phoneNumber}
+                      onChange={(e) => setLoanForm((current) => ({ ...current, phoneNumber: e.target.value }))}
+                    />
                   </label>
                 </div>
 
-                <div className="check-list">
-                  <label className="check-row">
-                    <input type="checkbox" checked={profile.hasDefaulted} onChange={(e) => updateField('hasDefaulted', e.target.checked)} />
-                    <span>Previous default</span>
-                  </label>
-                  <label className="check-row">
-                    <input type="checkbox" checked={profile.isRegularSaver} onChange={(e) => updateField('isRegularSaver', e.target.checked)} />
-                    <span>Regular monthly savings</span>
-                  </label>
-                  <label className="check-row">
-                    <input type="checkbox" checked={profile.hasLoanOpen} onChange={(e) => updateField('hasLoanOpen', e.target.checked)} />
-                    <span>Existing active loan</span>
-                  </label>
-                </div>
-
-                <div className={`registry-banner ${registryStatus.verified ? 'ok' : 'warn'}`}>
-                  <strong>{registryStatus.verified ? 'Registry check passed' : 'Registry check needs review'}</strong>
-                  <p>{registryStatus.message}</p>
-                </div>
-
-                <button className="primary-button" onClick={handleSubmit}>Apply now</button>
-                {statusMessage && <p className="status-message">{statusMessage}</p>}
+                <button className="primary-button" onClick={applyForLoan}>Apply for loan</button>
               </div>
 
-              <div className="card chat-card">
+              <div className="card">
                 <div className="card-header">
-                  <h3>Ask the SACCO bot</h3>
-                  <span className="chip neutral">Online</span>
+                  <h3>Member details</h3>
+                  <span className="chip success">Verified</span>
                 </div>
 
-                <div className="chat-window">
-                  {chatMessages.map((message, index) => (
-                    <div key={`${message.sender}-${index}`} className={`message ${message.sender}`}>
-                      {message.text}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="chat-input-row">
-                  <input
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Ask about loan rules..."
-                  />
-                  <button className="primary-button small" onClick={sendBotQuestion}>Send</button>
+                <div className="member-details">
+                  <div><span>Name</span><strong>{currentMember.name}</strong></div>
+                  <div><span>Email</span><strong>{currentMember.email}</strong></div>
+                  <div><span>Country</span><strong>{currentMember.country}</strong></div>
+                  <div><span>Phone</span><strong>{currentMember.phone}</strong></div>
+                  <div><span>Joined</span><strong>{currentMember.joinedAt}</strong></div>
+                  <div><span>Balance</span><strong>{formatCurrency(currentMember.savings)}</strong></div>
                 </div>
               </div>
             </div>
+
+            <div className="card table-card">
+              <div className="card-header">
+                <h3>Contribution history</h3>
+                <span className="chip neutral">Recent</span>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentMember.contributionHistory.map((entry, index) => (
+                    <tr key={`${entry.month}-${index}`}>
+                      <td>{entry.month}</td>
+                      <td>{formatCurrency(entry.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
-        ) : (
+        )}
+
+        {page === 'new-member' && (
+          <div className="card full-card">
+            <div className="card-header">
+              <h3>New member registration</h3>
+              <span className="chip neutral">Create account</span>
+            </div>
+
+            <div className="form-grid three-col">
+              <label>
+                <span>Full name</span>
+                <input
+                  value={newMemberForm.name}
+                  onChange={(e) => setNewMemberForm((current) => ({ ...current, name: e.target.value }))}
+                />
+              </label>
+
+              <label>
+                <span>Email</span>
+                <input
+                  type="email"
+                  value={newMemberForm.email}
+                  onChange={(e) => setNewMemberForm((current) => ({ ...current, email: e.target.value }))}
+                />
+              </label>
+
+              <label>
+                <span>Phone</span>
+                <input
+                  value={newMemberForm.phone}
+                  onChange={(e) => setNewMemberForm((current) => ({ ...current, phone: e.target.value }))}
+                />
+              </label>
+
+              <label>
+                <span>ID number</span>
+                <input
+                  value={newMemberForm.idNumber}
+                  onChange={(e) => setNewMemberForm((current) => ({ ...current, idNumber: e.target.value }))}
+                />
+              </label>
+
+              <label>
+                <span>Country</span>
+                <select
+                  value={newMemberForm.country}
+                  onChange={(e) => setNewMemberForm((current) => ({ ...current, country: e.target.value }))}
+                >
+                  <option value="Kenya">Kenya</option>
+                  <option value="Uganda">Uganda</option>
+                  <option value="Tanzania">Tanzania</option>
+                  <option value="Rwanda">Rwanda</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Password</span>
+                <input
+                  type="password"
+                  value={newMemberForm.password}
+                  onChange={(e) => setNewMemberForm((current) => ({ ...current, password: e.target.value }))}
+                />
+              </label>
+            </div>
+
+            <button className="primary-button" onClick={addNewMember}>Create member</button>
+          </div>
+        )}
+
+        {page === 'contribution' && (
+          <div className="card full-card">
+            <div className="card-header">
+              <h3>Record monthly contribution</h3>
+              <span className="chip neutral">Savings</span>
+            </div>
+
+            <div className="form-grid two-col">
+              <label>
+                <span>Contribution amount</span>
+                <input
+                  type="number"
+                  value={contributionForm.amount}
+                  onChange={(e) => setContributionForm((current) => ({ ...current, amount: e.target.value }))}
+                />
+              </label>
+
+              <label>
+                <span>Month</span>
+                <select
+                  value={contributionForm.month}
+                  onChange={(e) => setContributionForm((current) => ({ ...current, month: e.target.value }))}
+                >
+                  <option value="October 2026">October 2026</option>
+                  <option value="November 2026">November 2026</option>
+                  <option value="December 2026">December 2026</option>
+                  <option value="January 2027">January 2027</option>
+                </select>
+              </label>
+            </div>
+
+            <button className="primary-button" onClick={addContribution}>Save contribution</button>
+          </div>
+        )}
+
+        {page === 'admin' && (
           <>
             <header className="admin-header">
               <div>
-                <p className="eyebrow">Admin console</p>
-                <h1>Loan approvals dashboard</h1>
+                <p className="eyebrow">Admin private page</p>
+                <h1>SACCO growth dashboard</h1>
               </div>
               <div className="admin-user-badge">
-                <strong>{adminProfile.name}</strong>
-                <span>{adminProfile.position}</span>
+                <strong>Alex Njoroge</strong>
+                <span>Loan Committee Chair</span>
               </div>
             </header>
 
             <div className="stats-grid admin-grid">
               <div className="stat-card accent">
-                <span>Applications</span>
-                <strong>{applications.length}</strong>
+                <span>Members</span>
+                <strong>{members.length}</strong>
               </div>
               <div className="stat-card">
-                <span>Approved</span>
-                <strong>{totalApproved}</strong>
+                <span>Monthly savings</span>
+                <strong>{formatCurrency(totalContributions)}</strong>
               </div>
               <div className="stat-card">
-                <span>Pending review</span>
-                <strong>{pendingReviews}</strong>
+                <span>Total share</span>
+                <strong>{formatCurrency(totalShare)}</strong>
               </div>
               <div className="stat-card">
-                <span>Largest loan</span>
-                <strong>{formatCurrency(Math.max(...applications.map((item) => Number(item.amount || 0))))}</strong>
+                <span>Loan requests</span>
+                <strong>{loanQueue.length}</strong>
+              </div>
+            </div>
+
+            <div className="content-grid">
+              <div className="card">
+                <div className="card-header">
+                  <h3>Add employee</h3>
+                  <span className="chip neutral">Staff</span>
+                </div>
+
+                <div className="form-grid">
+                  <label>
+                    <span>Name</span>
+                    <input
+                      value={employeeForm.name}
+                      onChange={(e) => setEmployeeForm((current) => ({ ...current, name: e.target.value }))}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Position</span>
+                    <input
+                      value={employeeForm.position}
+                      onChange={(e) => setEmployeeForm((current) => ({ ...current, position: e.target.value }))}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Country</span>
+                    <select
+                      value={employeeForm.country}
+                      onChange={(e) => setEmployeeForm((current) => ({ ...current, country: e.target.value }))}
+                    >
+                      <option value="Kenya">Kenya</option>
+                      <option value="Uganda">Uganda</option>
+                      <option value="Tanzania">Tanzania</option>
+                    </select>
+                  </label>
+                </div>
+
+                <button className="primary-button" onClick={addEmployee}>Add employee</button>
+
+                <div className="employee-list">
+                  {employees.map((employee) => (
+                    <div key={employee.id} className="employee-row">
+                      <div>
+                        <strong>{employee.name}</strong>
+                        <span>{employee.position}</span>
+                      </div>
+                      <small>{employee.country}</small>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card chart-card">
+                <div className="card-header">
+                  <h3>SACCO growth</h3>
+                  <span className="chip success">+32%</span>
+                </div>
+
+                <div className="chart-box">
+                  {chartSeries.map((value, index) => (
+                    <div key={value + index} className="chart-col">
+                      <span style={{ height: `${value}%` }} />
+                      <small>{chartLabels[index]}</small>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
             <div className="card admin-table-card">
               <div className="card-header">
-                <h3>Applications queue</h3>
+                <h3>Loan approvals queue</h3>
                 <span className="chip neutral">Live</span>
               </div>
 
@@ -514,26 +690,34 @@ function App() {
                     <th>Member</th>
                     <th>Position</th>
                     <th>Contribution</th>
-                    <th>Loan applied</th>
+                    <th>Loan</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {applications.map((app) => (
-                    <tr key={app.id} onClick={() => setSelectedApplicationId(app.id)} className={selectedApplicationId === app.id ? 'selected-row' : ''}>
-                      <td>{app.memberName}</td>
-                      <td>{app.memberPosition || 'Member'}</td>
-                      <td>{formatCurrency(app.contribution || 0)}</td>
-                      <td>{formatCurrency(app.amount || 0)}</td>
+                  {loanQueue.map((loan) => (
+                    <tr
+                      key={loan.id}
+                      className={selectedLoanId === loan.id ? 'selected-row' : ''}
+                      onClick={() => setSelectedLoanId(loan.id)}
+                    >
+                      <td>{loan.memberName}</td>
+                      <td>{loan.memberPosition || 'Member'}</td>
+                      <td>{formatCurrency(loan.contribution || 0)}</td>
+                      <td>{formatCurrency(loan.amount || 0)}</td>
                       <td>
-                        <span className={`table-status ${app.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                          {app.status}
+                        <span className={`table-status ${loan.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                          {loan.status}
                         </span>
                       </td>
                       <td className="action-cell">
-                        <button className="approve-btn" disabled={updatingId === app.id} onClick={(e) => { e.stopPropagation(); updateLoanStatus(app.id, 'Approved'); }}>Approve</button>
-                        <button className="reject-btn" disabled={updatingId === app.id} onClick={(e) => { e.stopPropagation(); updateLoanStatus(app.id, 'Rejected'); }}>Reject</button>
+                        <button className="approve-btn" onClick={(e) => { e.stopPropagation(); updateLoanStatus(loan.id, 'Approved'); }}>
+                          Approve
+                        </button>
+                        <button className="reject-btn" onClick={(e) => { e.stopPropagation(); updateLoanStatus(loan.id, 'Rejected'); }}>
+                          Reject
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -541,48 +725,46 @@ function App() {
               </table>
             </div>
 
-            {selectedApplication && (
+            {selectedLoan && (
               <div className="card detail-card">
                 <div className="card-header">
-                  <h3>Application details</h3>
-                  <span className={`chip ${selectedApplication.status === 'Approved' ? 'success' : selectedApplication.status === 'Rejected' ? 'warning' : 'neutral'}`}>
-                    {selectedApplication.status}
+                  <h3>Selected request</h3>
+                  <span className={`chip ${selectedLoan.status === 'Approved' ? 'success' : selectedLoan.status === 'Rejected' ? 'warning' : 'neutral'}`}>
+                    {selectedLoan.status}
                   </span>
                 </div>
 
                 <div className="detail-grid">
                   <div>
-                    <label>Member name</label>
-                    <strong>{selectedApplication.memberName}</strong>
+                    <label>Member</label>
+                    <strong>{selectedLoan.memberName}</strong>
                   </div>
                   <div>
                     <label>Position</label>
-                    <strong>{selectedApplication.memberPosition || 'Member'}</strong>
+                    <strong>{selectedLoan.memberPosition || 'Member'}</strong>
                   </div>
                   <div>
                     <label>Contribution</label>
-                    <strong>{formatCurrency(selectedApplication.contribution || 0)}</strong>
+                    <strong>{formatCurrency(selectedLoan.contribution || 0)}</strong>
                   </div>
                   <div>
-                    <label>Loan applied</label>
-                    <strong>{formatCurrency(selectedApplication.amount || 0)}</strong>
+                    <label>Loan amount</label>
+                    <strong>{formatCurrency(selectedLoan.amount || 0)}</strong>
                   </div>
                   <div>
                     <label>Purpose</label>
-                    <strong>{selectedApplication.purpose}</strong>
+                    <strong>{selectedLoan.purpose}</strong>
                   </div>
                   <div>
                     <label>Date</label>
-                    <strong>{selectedApplication.date}</strong>
+                    <strong>{selectedLoan.date}</strong>
                   </div>
                 </div>
 
                 <div className="detail-actions">
-                  <button className="approve-btn" disabled={updatingId === selectedApplication.id} onClick={() => updateLoanStatus(selectedApplication.id, 'Approved')}>Accept request</button>
-                  <button className="reject-btn" disabled={updatingId === selectedApplication.id} onClick={() => updateLoanStatus(selectedApplication.id, 'Rejected')}>Reject request</button>
+                  <button className="approve-btn" onClick={() => updateLoanStatus(selectedLoan.id, 'Approved')}>Accept request</button>
+                  <button className="reject-btn" onClick={() => updateLoanStatus(selectedLoan.id, 'Rejected')}>Reject request</button>
                 </div>
-                {adminMessage && <p className="status-message" role="status">{adminMessage}</p>}
-                {applicationsError && <p className="status-message" role="alert">Could not reach the API: {applicationsError.message}. Showing sample data.</p>}
               </div>
             )}
           </>
