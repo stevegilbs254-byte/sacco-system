@@ -95,6 +95,55 @@ const summaryCards = [
   { label: 'Inactive', value: ALL_MEMBERS.filter((m) => m.status === 'Inactive').length, tone: '#ef4444' },
 ];
 
+const IllustrationScene = ({ accent = '#4f46e5' }) => (
+  <div style={styles.heroVisual}>
+    <div style={{ ...styles.orb, ...styles.orbPink }} />
+    <div style={{ ...styles.orb, ...styles.orbGold }} />
+    <div style={{ ...styles.orb, ...styles.orbBlue }} />
+
+    <div style={{ ...styles.floatingCard, ...styles.floatingCardTop }}>
+      <div style={styles.floatingLabel}>Monthly Flow</div>
+      <div style={styles.floatingValue}>KSh 248K</div>
+      <div style={styles.sparkline}>
+        <span style={{ ...styles.sparkBar, ...styles.sparkBarA }} />
+        <span style={{ ...styles.sparkBar, ...styles.sparkBarB }} />
+        <span style={{ ...styles.sparkBar, ...styles.sparkBarC }} />
+        <span style={{ ...styles.sparkBar, ...styles.sparkBarD }} />
+        <span style={{ ...styles.sparkBar, ...styles.sparkBarE }} />
+      </div>
+    </div>
+
+    <div style={{ ...styles.floatingCard, ...styles.floatingCardBottom }}>
+      <div style={styles.floatingPill}>+18.4%</div>
+      <div style={styles.floatingText}>Savings growth</div>
+    </div>
+
+    <div style={styles.peopleScene}>
+      <div style={styles.person}>
+        <div style={styles.personHead} />
+        <div style={styles.personBody} />
+        <div style={{ ...styles.personArm, ...styles.armLeft }} />
+        <div style={{ ...styles.personArm, ...styles.armRight }} />
+        <div style={styles.pocket} />
+        <div style={{ ...styles.coin, ...styles.coinOne }} />
+      </div>
+
+      <div style={{ ...styles.person, ...styles.personTwo }}>
+        <div style={styles.personHead} />
+        <div style={styles.personBody} />
+        <div style={{ ...styles.personArm, ...styles.armLeft }} />
+        <div style={{ ...styles.personArm, ...styles.armRight }} />
+        <div style={styles.pocket} />
+        <div style={{ ...styles.coin, ...styles.coinTwo }} />
+      </div>
+    </div>
+
+    <div style={{ ...styles.glowBadge, background: `linear-gradient(135deg, ${accent}, #22d3ee)` }}>
+      Members saved today
+    </div>
+  </div>
+);
+
 function App() {
   const [currentUser, setCurrentUser] = useState({
     name: 'Admin User',
@@ -139,6 +188,18 @@ function App() {
   if (!isLoggedIn) {
     return (
       <div style={styles.loginPage}>
+        <div style={styles.loginVisualWrap}>
+          <div style={styles.loginCopy}>
+            <p style={styles.kicker}>Smart SACCO</p>
+            <h1 style={styles.heroTitle}>Build wealth together.<br />Every coin counts.</h1>
+            <p style={styles.heroText}>
+              Secure member savings, faster loan flows, and brighter financial futures in one vibrant dashboard.
+            </p>
+          </div>
+
+          <IllustrationScene accent="#4f46e5" />
+        </div>
+
         <div style={styles.loginCard}>
           <div style={styles.logoRow}>
             <div style={styles.logoBox}>S</div>
@@ -170,8 +231,14 @@ function App() {
     return (
       <div style={styles.roleSelectPage}>
         <div style={styles.roleSelectCard}>
-          <p style={styles.kicker}>Continue as</p>
-          <h1 style={styles.roleTitle}>Choose your portal</h1>
+          <div style={styles.roleHeaderWrap}>
+            <div>
+              <p style={styles.kicker}>Continue as</p>
+              <h1 style={styles.roleTitle}>Choose your portal</h1>
+            </div>
+            <button type="button" style={styles.backLink} onClick={() => setIsLoggedIn(false)}>Back</button>
+          </div>
+
           <p style={styles.roleSubtitle}>Select whether you want to access the member or admin dashboard.</p>
 
           <div style={styles.roleGrid}>
@@ -187,6 +254,10 @@ function App() {
               <small style={styles.roleText}>Manage members, loans, and SACCO reports.</small>
             </button>
           </div>
+
+          <div style={styles.roleSceneWrap}>
+            <IllustrationScene accent="#8b5cf6" />
+          </div>
         </div>
       </div>
     );
@@ -195,54 +266,56 @@ function App() {
   return (
     <div style={styles.appShell}>
       <aside style={styles.sidebar}>
-        <div style={styles.brandBox}>
-          <div style={styles.brandIcon}>S</div>
-          <div>
-            <div style={styles.brandTitle}>SACCO</div>
-            <div style={styles.brandSub}>{loginRole === 'admin' ? 'Admin Portal' : 'Member Portal'}</div>
+        <div>
+          <div style={styles.brandBox}>
+            <div style={styles.brandIcon}>S</div>
+            <div>
+              <div style={styles.brandTitle}>SACCO</div>
+              <div style={styles.brandSub}>{loginRole === 'admin' ? 'Admin Portal' : 'Member Portal'}</div>
+            </div>
           </div>
-        </div>
 
-        <nav style={styles.navList}>
-          <button
-            type="button"
-            onClick={() => setScreen('dashboard')}
-            style={{ ...styles.navButton, ...(screen === 'dashboard' ? styles.navButtonActive : {}) }}
-          >
-            Dashboard
-          </button>
-          <button
-            type="button"
-            onClick={() => setScreen('members')}
-            style={{ ...styles.navButton, ...(screen === 'members' ? styles.navButtonActive : {}) }}
-          >
-            All Members
-          </button>
-          <button
-            type="button"
-            onClick={() => setScreen('loans')}
-            style={{ ...styles.navButton, ...(screen === 'loans' ? styles.navButtonActive : {}) }}
-          >
-            Loan Requests
-          </button>
-          <button
-            type="button"
-            onClick={() => setScreen('reports')}
-            style={{ ...styles.navButton, ...(screen === 'reports' ? styles.navButtonActive : {}) }}
-          >
-            Reports
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsLoggedIn(false);
-              setLoginRole('');
-            }}
-            style={{ ...styles.navButton, ...styles.logoutButton }}
-          >
-            Logout
-          </button>
-        </nav>
+          <nav style={styles.navList}>
+            <button
+              type="button"
+              onClick={() => setScreen('dashboard')}
+              style={{ ...styles.navButton, ...(screen === 'dashboard' ? styles.navButtonActive : {}) }}
+            >
+              Dashboard
+            </button>
+            <button
+              type="button"
+              onClick={() => setScreen('members')}
+              style={{ ...styles.navButton, ...(screen === 'members' ? styles.navButtonActive : {}) }}
+            >
+              All Members
+            </button>
+            <button
+              type="button"
+              onClick={() => setScreen('loans')}
+              style={{ ...styles.navButton, ...(screen === 'loans' ? styles.navButtonActive : {}) }}
+            >
+              Loan Requests
+            </button>
+            <button
+              type="button"
+              onClick={() => setScreen('reports')}
+              style={{ ...styles.navButton, ...(screen === 'reports' ? styles.navButtonActive : {}) }}
+            >
+              Reports
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsLoggedIn(false);
+                setLoginRole('');
+              }}
+              style={{ ...styles.navButton, ...styles.logoutButton }}
+            >
+              Logout
+            </button>
+          </nav>
+        </div>
 
         <div style={styles.userBox}>
           <div style={styles.avatar}>{currentUser.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</div>
@@ -448,19 +521,46 @@ const statusColor = (status) => {
 const styles = {
   loginPage: {
     minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: 'radial-gradient(circle at top, rgba(79,70,229,0.2), transparent 35%), #07111f',
-    padding: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '32px',
+    background: 'radial-gradient(circle at top left, rgba(79,70,229,0.3), transparent 35%), radial-gradient(circle at bottom right, rgba(14,165,233,0.28), transparent 30%), #07111f',
+    padding: '30px',
+  },
+  loginVisualWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '18px',
+    width: 'min(560px, 50vw)',
+    minWidth: '320px',
+  },
+  loginCopy: {
+    paddingLeft: '8px',
+  },
+  heroTitle: {
+    margin: '0 0 10px',
+    color: '#f8fafc',
+    fontSize: 'clamp(2.2rem, 4vw, 4rem)',
+    lineHeight: 1.05,
+    letterSpacing: '-0.05em',
+  },
+  heroText: {
+    margin: 0,
+    color: '#cbd5e1',
+    fontSize: '1.08rem',
+    lineHeight: 1.7,
+    maxWidth: '520px',
   },
   loginCard: {
     width: '100%',
     maxWidth: '420px',
-    background: 'rgba(15, 23, 42, 0.9)',
+    background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.82))',
     border: '1px solid rgba(148, 163, 184, 0.2)',
     borderRadius: '24px',
     padding: '32px 28px',
-    boxShadow: '0 24px 50px rgba(15, 23, 42, 0.35)',
+    boxShadow: '0 24px 60px rgba(15, 23, 42, 0.45)',
+    backdropFilter: 'blur(10px)',
   },
   logoRow: {
     display: 'flex',
@@ -477,6 +577,7 @@ const styles = {
     background: 'linear-gradient(135deg, #4f46e5, #10b981)',
     fontWeight: 800,
     fontSize: '22px',
+    boxShadow: '0 18px 32px rgba(79, 70, 229, 0.4)',
   },
   brandText: {
     fontSize: '12px',
@@ -511,21 +612,36 @@ const styles = {
     color: '#e2e8f0',
     padding: '12px 14px',
     outline: 'none',
+    boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.03)',
   },
   roleSelectPage: {
     minHeight: '100vh',
     display: 'grid',
     placeItems: 'center',
     padding: '32px',
-    background: 'radial-gradient(circle at center, rgba(14,165,233,0.18), transparent 35%)',
+    background: 'radial-gradient(circle at center, rgba(14,165,233,0.18), transparent 35%), #07111f',
   },
   roleSelectCard: {
-    width: 'min(820px, 100%)',
-    background: 'rgba(15, 23, 42, 0.82)',
+    width: 'min(920px, 100%)',
+    background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.76))',
     border: '1px solid rgba(148, 163, 184, 0.18)',
-    borderRadius: '28px',
-    padding: '36px 28px',
-    boxShadow: '0 24px 50px rgba(15, 23, 42, 0.35)',
+    borderRadius: '30px',
+    padding: '36px 28px 26px',
+    boxShadow: '0 24px 60px rgba(15, 23, 42, 0.4)',
+  },
+  roleHeaderWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+  },
+  backLink: {
+    background: 'rgba(148, 163, 184, 0.08)',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    borderRadius: '10px',
+    color: '#f8fafc',
+    padding: '10px 14px',
+    cursor: 'pointer',
   },
   roleTitle: {
     margin: '14px 0 10px',
@@ -553,7 +669,7 @@ const styles = {
     border: '1px solid rgba(255,255,255,0.08)',
     textAlign: 'left',
     cursor: 'pointer',
-    transition: 'transform 0.2s ease',
+    boxShadow: '0 22px 32px rgba(17, 24, 39, 0.18)',
   },
   memberRoleButton: {
     background: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
@@ -580,21 +696,230 @@ const styles = {
     lineHeight: 1.5,
     fontSize: '0.96rem',
   },
+  roleSceneWrap: {
+    marginTop: '24px',
+    borderRadius: '26px',
+    background: 'rgba(15, 23, 42, 0.55)',
+    border: '1px solid rgba(148, 163, 184, 0.15)',
+    overflow: 'hidden',
+  },
+  heroVisual: {
+    position: 'relative',
+    height: '320px',
+    background: 'linear-gradient(180deg, rgba(79,70,229,0.15), rgba(15, 23, 42, 0.3))',
+    borderRadius: '28px',
+    overflow: 'hidden',
+    border: '1px solid rgba(148, 163, 184, 0.12)',
+  },
+  orb: {
+    position: 'absolute',
+    borderRadius: '50%',
+    filter: 'blur(18px)',
+    opacity: 0.8,
+  },
+  orbPink: {
+    width: '180px',
+    height: '180px',
+    background: 'rgba(244, 114, 182, 0.45)',
+    top: '-30px',
+    right: '40px',
+  },
+  orbGold: {
+    width: '180px',
+    height: '180px',
+    background: 'rgba(251, 191, 36, 0.22)',
+    bottom: '-20px',
+    left: '20px',
+  },
+  orbBlue: {
+    width: '240px',
+    height: '240px',
+    background: 'rgba(56, 189, 248, 0.24)',
+    bottom: '-60px',
+    right: '120px',
+  },
+  floatingCard: {
+    position: 'absolute',
+    background: 'rgba(15, 23, 42, 0.65)',
+    border: '1px solid rgba(148, 163, 184, 0.14)',
+    borderRadius: '18px',
+    padding: '14px 16px',
+    boxShadow: '0 20px 35px rgba(15, 23, 42, 0.3)',
+    backdropFilter: 'blur(8px)',
+  },
+  floatingCardTop: {
+    top: '30px',
+    left: '26px',
+    minWidth: '160px',
+  },
+  floatingCardBottom: {
+    right: '28px',
+    bottom: '22px',
+    minWidth: '160px',
+  },
+  floatingLabel: {
+    color: '#a5b4fc',
+    fontSize: '11px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.12em',
+  },
+  floatingValue: {
+    fontSize: '28px',
+    fontWeight: 800,
+    marginTop: '8px',
+    color: '#f8fafc',
+  },
+  floatingPill: {
+    display: 'inline-flex',
+    background: 'linear-gradient(135deg, rgba(16,185,129,0.24), rgba(34,197,94,0.12))',
+    borderRadius: '999px',
+    color: '#bbf7d0',
+    padding: '6px 10px',
+    fontSize: '12px',
+    fontWeight: 700,
+  },
+  floatingText: {
+    marginTop: '10px',
+    color: '#cbd5e1',
+    fontSize: '13px',
+  },
+  sparkline: {
+    marginTop: '14px',
+    display: 'flex',
+    alignItems: 'end',
+    gap: '8px',
+    height: '42px',
+  },
+  sparkBar: {
+    display: 'block',
+    width: '10px',
+    borderRadius: '999px',
+    background: 'linear-gradient(180deg, #7dd3fc, #4f46e5)',
+  },
+  sparkBarA: { height: '32%' },
+  sparkBarB: { height: '54%' },
+  sparkBarC: { height: '72%' },
+  sparkBarD: { height: '88%' },
+  sparkBarE: { height: '100%' },
+  peopleScene: {
+    position: 'absolute',
+    left: '50%',
+    bottom: '24px',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    alignItems: 'end',
+    gap: '48px',
+    zIndex: 2,
+  },
+  person: {
+    position: 'relative',
+    width: '120px',
+    height: '180px',
+  },
+  personTwo: {
+    transform: 'translateY(12px) scale(0.96)',
+  },
+  personHead: {
+    position: 'absolute',
+    top: '18px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '52px',
+    height: '52px',
+    borderRadius: '50%',
+    background: 'linear-gradient(180deg, #fef3c7, #fbbf24)',
+    boxShadow: 'inset 0 -8px 12px rgba(146, 64, 14, 0.1)',
+    zIndex: 3,
+  },
+  personBody: {
+    position: 'absolute',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '78px',
+    height: '90px',
+    borderRadius: '20px 20px 26px 26px',
+    background: 'linear-gradient(180deg, #4f46e5, #06b6d4)',
+    boxShadow: 'inset 0 -10px 16px rgba(15, 23, 42, 0.1)',
+  },
+  personArm: {
+    position: 'absolute',
+    top: '86px',
+    width: '16px',
+    height: '58px',
+    background: 'linear-gradient(180deg, #f8fafc, #dbeafe)',
+    borderRadius: '12px',
+    zIndex: 2,
+  },
+  armLeft: {
+    left: '12px',
+    transform: 'rotate(28deg)',
+  },
+  armRight: {
+    right: '12px',
+    transform: 'rotate(-28deg)',
+  },
+  pocket: {
+    position: 'absolute',
+    left: '50%',
+    bottom: '18px',
+    transform: 'translateX(-50%)',
+    width: '44px',
+    height: '28px',
+    borderRadius: '0 0 18px 18px',
+    background: 'rgba(15, 23, 42, 0.18)',
+    border: '2px solid rgba(15, 23, 42, 0.18)',
+    zIndex: 5,
+  },
+  coin: {
+    position: 'absolute',
+    width: '24px',
+    height: '24px',
+    borderRadius: '50%',
+    background: 'linear-gradient(180deg, #fef08a, #fbbf24)',
+    border: '3px solid rgba(255,255,255,0.6)',
+    boxShadow: '0 12px 18px rgba(245, 158, 11, 0.28)',
+    zIndex: 6,
+  },
+  coinOne: {
+    bottom: '30px',
+    right: '10px',
+  },
+  coinTwo: {
+    bottom: '42px',
+    left: '12px',
+  },
+  glowBadge: {
+    position: 'absolute',
+    right: '24px',
+    top: '24px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '10px 14px',
+    borderRadius: '999px',
+    color: '#fff',
+    fontWeight: 700,
+    fontSize: '12px',
+    letterSpacing: '0.04em',
+    boxShadow: '0 18px 28px rgba(79,70,229,0.25)',
+    zIndex: 7,
+  },
   appShell: {
     display: 'flex',
     minHeight: '100vh',
-    background: '#07111f',
+    background: 'linear-gradient(180deg, #07111f 0%, #0b1529 100%)',
     color: '#e2e8f0',
     fontFamily: 'Inter, Segoe UI, sans-serif',
   },
   sidebar: {
     width: '260px',
-    background: 'rgba(15, 23, 42, 0.92)',
+    background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.9))',
     borderRight: '1px solid rgba(148, 163, 184, 0.18)',
     padding: '24px 18px',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
+    boxShadow: 'rgba(15, 23, 42, 0.28) 0 20px 40px',
   },
   brandBox: {
     display: 'flex',
@@ -611,6 +936,7 @@ const styles = {
     placeItems: 'center',
     fontWeight: 700,
     color: '#fff',
+    boxShadow: '0 18px 28px rgba(79, 70, 229, 0.32)',
   },
   brandTitle: {
     fontSize: '18px',
@@ -638,7 +964,7 @@ const styles = {
     transition: 'all 0.2s ease',
   },
   navButtonActive: {
-    background: 'rgba(79, 70, 229, 0.18)',
+    background: 'linear-gradient(135deg, rgba(79,70,229,0.16), rgba(14,165,233,0.18))',
     color: '#fff',
     boxShadow: 'inset 0 0 0 1px rgba(129, 140, 248, 0.35)',
   },
@@ -651,7 +977,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    background: 'rgba(15, 118, 110, 0.15)',
+    background: 'linear-gradient(180deg, rgba(16,185,129,0.15), rgba(15,118,110,0.08))',
     border: '1px solid rgba(16, 185, 129, 0.2)',
     borderRadius: '14px',
     padding: '12px',
@@ -665,6 +991,7 @@ const styles = {
     placeItems: 'center',
     fontWeight: 700,
     fontSize: '13px',
+    boxShadow: '0 16px 24px rgba(34,197,94,0.2)',
   },
   userName: {
     fontWeight: 700,
@@ -677,6 +1004,7 @@ const styles = {
   mainContent: {
     flex: 1,
     padding: '28px',
+    background: 'radial-gradient(circle at top left, rgba(79,70,229,0.08), transparent 26%)',
   },
   headerRow: {
     display: 'flex',
@@ -705,6 +1033,7 @@ const styles = {
     padding: '12px 18px',
     fontWeight: 700,
     cursor: 'pointer',
+    boxShadow: '0 18px 28px rgba(79,70,229,0.28)',
   },
   summaryGrid: {
     display: 'grid',
@@ -713,11 +1042,11 @@ const styles = {
     marginBottom: '24px',
   },
   summaryCard: {
-    background: 'rgba(15, 23, 42, 0.8)',
+    background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.76))',
     border: '1px solid rgba(148, 163, 184, 0.18)',
     borderRadius: '16px',
     padding: '18px 18px 16px',
-    boxShadow: '0 12px 25px rgba(2, 6, 23, 0.25)',
+    boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
   },
   summaryLabel: {
     color: '#94a3b8',
@@ -735,10 +1064,11 @@ const styles = {
     gap: '16px',
   },
   statCard: {
-    background: 'rgba(15, 23, 42, 0.8)',
+    background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.72))',
     border: '1px solid rgba(148, 163, 184, 0.18)',
     borderRadius: '16px',
     padding: '18px',
+    boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
   },
   statLabel: {
     color: '#94a3b8',
@@ -787,6 +1117,7 @@ const styles = {
     border: '1px solid rgba(148, 163, 184, 0.18)',
     borderRadius: '16px',
     overflow: 'hidden',
+    boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
   },
   table: {
     width: '100%',
@@ -845,10 +1176,11 @@ const styles = {
     fontWeight: 700,
   },
   detailCard: {
-    background: 'rgba(15, 23, 42, 0.8)',
+    background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.72))',
     border: '1px solid rgba(148, 163, 184, 0.18)',
     borderRadius: '16px',
     padding: '20px',
+    boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
   },
   detailHeader: {
     color: '#a5b4fc',
@@ -907,6 +1239,7 @@ const styles = {
     padding: '30px',
     color: '#cbd5e1',
     fontSize: '16px',
+    boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
   },
 };
 
