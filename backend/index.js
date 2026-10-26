@@ -15,6 +15,7 @@ const membersCache = [
 ];
 
 const loansCache = [];
+const applicationsCache = [];
 
 const MemberSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -34,8 +35,30 @@ const LoanSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const ApplicationSchema = new mongoose.Schema(
+  {
+    memberName: { type: String, required: true },
+    idNumber: { type: String, required: true },
+    phoneNumber: { type: String, required: true },
+    yearOfBirth: { type: String, required: true },
+    yearsInSacco: { type: Number, default: 0 },
+    savings: { type: Number, default: 0 },
+    requestedAmount: { type: Number, default: 0 },
+    purpose: { type: String, default: '' },
+    hasDefaulted: { type: Boolean, default: false },
+    hasLoanOpen: { type: Boolean, default: false },
+    isRegularSaver: { type: Boolean, default: false },
+    registryStatus: { type: String, default: 'pending' },
+    qualificationStatus: { type: String, default: 'pending' },
+    status: { type: String, default: 'Pending' },
+    applicationDate: { type: Date, default: Date.now },
+  },
+  { timestamps: true }
+);
+
 const Member = mongoose.model('Member', MemberSchema);
 const Loan = mongoose.model('Loan', LoanSchema);
+const Application = mongoose.model('Application', ApplicationSchema);
 
 const dbReady = () => mongoose.connection.readyState === 1;
 
@@ -85,6 +108,36 @@ function checkQualification(member, requestedAmount) {
   return { qualified: true, limit };
 }
 
+function parseApplicationPayload(body) {
+  const required = ['memberName', 'idNumber', 'phoneNumber', 'yearOfBirth'];
+  for (const field of required) {
+    if (!body[field] || String(body[field]).trim() === '') {
+      throw new Error(`${field} is required`);
+    }
+  }
+
+  const requestedAmount = Number(body.requestedAmount || 0);
+  const savings = Number(body.savings || 0);
+  const yearsInSacco = Number(body.yearsInSacco || 0);
+
+  return {
+    memberName: String(body.memberName).trim(),
+    idNumber: String(body.idNumber).trim(),
+    phoneNumber: String(body.phoneNumber).trim(),
+    yearOfBirth: String(body.yearOfBirth).trim(),
+    yearsInSacco: Number.isFinite(yearsInSacco) ? yearsInSacco : 0,
+    savings: Number.isFinite(savings) ? savings : 0,
+    requestedAmount: Number.isFinite(requestedAmount) ? requestedAmount : 0,
+    purpose: String(body.purpose || '').trim(),
+    hasDefaulted: Boolean(body.hasDefaulted),
+    hasLoanOpen: Boolean(body.hasLoanOpen),
+    isRegularSaver: Boolean(body.isRegularSaver),
+    registryStatus: body.registryStatus || 'pending',
+    qualificationStatus: body.qualificationStatus || 'pending',
+    status: body.status || 'Pending',
+  };
+}
+
 app.get('/', (req, res) => res.send('SACCO API LIVE'));
 
 app.get('/api/members', async (req, res) => {
@@ -103,6 +156,39 @@ app.get('/api/loans', async (req, res) => {
     // fall through to cache
   }
   res.json(loansCache);
+});
+
+app.get('/api/applications', async (req, res) => {
+  try {
+    if (dbReady()) {
+      const saved = await Application.find().sort({ createdAt: -1 });
+      return res.json(saved);
+    }
+  } catch (e) {
+    // fall through to cache
+  }
+
+  res.json(applicationsCache.slice().sort((a, b) => new Date(b.applicationDate) - new Date(a.applicationDate)));
+});
+
+app.post('/api/applications', async (req, res) => {
+  try {
+    const payload = parseApplicationPayload(req.body);
+    const appData = {
+      ...payload,
+      applicationDate: new Date().toISOString(),
+    };
+
+    if (dbReady()) {
+      const saved = await Application.create(appData);
+      return res.status(201).json(saved);
+    }
+
+    applicationsCache.unshift(appData);
+    return res.status(201).json(appData);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 app.post('/api/loans/request', async (req, res) => {
@@ -153,6 +239,35 @@ app.post('/api/loans/request', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+app.post('/api/mpesa/stk-push', (req, res) => {
+  const { phoneNumber, amount, reference = 'SACCO-APP', description = 'Loan application deposit' } = req.body || {};
+
+  if (!phoneNumber || !amount) {
+    return res.status(400).json({ error: 'phoneNumber and amount are required' });
+  }
+
+  const response = {
+    success: true,
+    merchantRequestID: `MR-${Date.now()}`,
+    checkoutRequestID: `CR-${Date.now()}`,
+    responseCode: '0',
+    responseDescription: 'Success. Request accepted by M-Pesa.',
+    customerMessage: 'Your payment request has been sent successfully.',
+    phoneNumber,
+    amount: Number(amount),
+    reference,
+    description,
+  };
+
+  res.status(200).json(response);
+});
+
+app.post('/api/mpesa/callback', (req, res) => {
+  const callback = req.body || {};
+  console.log('M-Pesa callback received:', callback);
+  res.status(200).json({ success: true, message: 'Callback received.' });
 });
 
 app.post('/api/loans', (req, res) => {
