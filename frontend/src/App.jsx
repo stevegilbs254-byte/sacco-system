@@ -171,7 +171,7 @@ function App() {
   const [selectedMember, setSelectedMember] = useState(defaultMemberProfile);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginRole, setLoginRole] = useState('');
-  const [memberMode, setMemberMode] = useState('new');
+  const [memberMode, setMemberMode] = useState(null);
   const [loanForm, setLoanForm] = useState({
     amount: 50000,
     purpose: 'Business growth',
@@ -227,7 +227,7 @@ function App() {
     setIsLoggedIn(true);
     setLoanNotice('');
     setNewMemberNotice('');
-    setMemberMode('new');
+    setMemberMode(null);
   };
 
   const handleLogin = () => {
@@ -281,6 +281,7 @@ function App() {
 
     setMemberApplications((current) => [application, ...current]);
     setNewMemberForm(emptyMemberForm);
+    setMemberMode(null);
     setNewMemberNotice(
       `Your new member request has been submitted. You started with KES ${Number(newMemberForm.initialSavings).toLocaleString()} and monthly savings of KES ${Number(newMemberForm.monthlySavings).toLocaleString()}. Keep saving until you meet the loan qualification thresholds.`
     );
@@ -588,33 +589,46 @@ function App() {
               <header style={styles.headerRow}>
                 <div>
                   <p style={styles.kicker}>Member registration</p>
-                  <h1 style={styles.pageTitle}>Member portal</h1>
+                  <h1 style={styles.pageTitle}>Choose your membership type</h1>
                 </div>
               </header>
 
               <div style={styles.loanCard}>
-                <div style={styles.memberModeSwitch}>
-                  <button
-                    type="button"
-                    onClick={() => setMemberMode('new')}
-                    style={{ ...styles.modeButton, ...(memberMode === 'new' ? styles.modeButtonActive : {}) }}
-                  >
-                    New Member
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMemberMode('normal')}
-                    style={{ ...styles.modeButton, ...(memberMode === 'normal' ? styles.modeButtonActive : {}) }}
-                  >
-                    Normal Member
-                  </button>
-                </div>
+                {memberMode === null ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))', gap: '22px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setMemberMode('new')}
+                      style={{ ...styles.memberChoiceButton, ...styles.memberChoiceNew }}
+                    >
+                      <span style={styles.roleIcon}>💼</span>
+                      <span style={styles.roleLabel}>New Member</span>
+                      <small style={styles.roleText}>Start your details and initial savings before becoming loan eligible.</small>
+                    </button>
 
-                {memberMode === 'new' ? (
+                    <button
+                      type="button"
+                      onClick={() => setMemberMode('normal')}
+                      style={{ ...styles.memberChoiceButton, ...styles.memberChoiceNormal }}
+                    >
+                      <span style={styles.roleIcon}>👤</span>
+                      <span style={styles.roleLabel}>Normal Member</span>
+                      <small style={styles.roleText}>View your active account and continue saving toward loan qualification.</small>
+                    </button>
+                  </div>
+                ) : memberMode === 'new' ? (
                   <>
                     <div style={{ ...styles.emptyState, marginBottom: '18px', background: 'rgba(59,130,246,0.08)' }}>
                       Start by adding your member details and the amount you want to begin saving with. Keep saving until your account becomes eligible for a loan.
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setMemberMode(null)}
+                      style={{ ...styles.backLink, marginBottom: '18px' }}
+                    >
+                      Back to member type
+                    </button>
 
                     <form onSubmit={handleNewMemberSubmit} style={styles.loanForm}>
                       <div style={styles.formGroupLoan}>
@@ -720,6 +734,14 @@ function App() {
                     <div style={{ ...styles.emptyState, marginBottom: '18px', background: 'rgba(16,185,129,0.08)' }}>
                       Normal member section: review your current details and continue contributing until you meet loan eligibility.
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setMemberMode(null)}
+                      style={{ ...styles.backLink, marginBottom: '18px' }}
+                    >
+                      Back to member type
+                    </button>
 
                     <div style={styles.detailCard}>
                       <div style={styles.detailTitle}>{memberProfile.name}</div>
@@ -1809,28 +1831,25 @@ const styles = {
     width: '100%',
     maxWidth: '520px',
   },
-  memberModeSwitch: {
-    display: 'inline-flex',
-    background: 'rgba(15, 23, 42, 0.7)',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    borderRadius: '12px',
-    padding: '6px',
-    gap: '8px',
-    marginBottom: '18px',
-  },
-  modeButton: {
-    background: 'transparent',
-    border: 'none',
-    borderRadius: '10px',
-    color: '#cbd5e1',
-    fontWeight: 700,
-    padding: '10px 16px',
-    cursor: 'pointer',
-  },
-  modeButtonActive: {
-    background: 'linear-gradient(135deg, rgba(79,70,229,0.18), rgba(14,165,233,0.18))',
+  memberChoiceButton: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: '12px',
+    minHeight: '220px',
+    borderRadius: '22px',
+    padding: '28px 22px',
     color: '#fff',
-    boxShadow: 'inset 0 0 0 1px rgba(129,140,248,0.35)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    textAlign: 'left',
+    cursor: 'pointer',
+    boxShadow: '0 22px 32px rgba(17, 24, 39, 0.18)',
+  },
+  memberChoiceNew: {
+    background: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+  },
+  memberChoiceNormal: {
+    background: 'linear-gradient(135deg, #8b5cf6, #4338ca)',
   },
 };
 
