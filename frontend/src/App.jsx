@@ -119,7 +119,7 @@ function getQualification(profile) {
 function App() {
   const [profile, setProfile] = useState(defaultProfile);
   const [applications, setApplications] = useState(starterApplications);
-  const [view, setView] = useState('member');
+  const [view, setView] = useState('choose');
   const [chatMessages, setChatMessages] = useState(initialChats);
   const [chatInput, setChatInput] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -180,6 +180,32 @@ function App() {
   const pendingReviews = applications.filter((item) => item.status === 'Pending' || item.status === 'Review required' || item.status === 'Reviewed').length;
   const totalAmount = applications.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
+  if (view === 'choose') {
+    return (
+      <main className="role-select-shell">
+        <div className="role-select-card">
+          <p className="eyebrow">Welcome to SACCO</p>
+          <h1>Choose your portal</h1>
+          <p className="role-subtitle">Select how you want to continue.</p>
+
+          <div className="role-grid">
+            <button className="portal-button member-button" onClick={() => setView('member')}>
+              <span className="portal-icon">👤</span>
+              <span>Member</span>
+              <small>Apply for a loan and manage your profile</small>
+            </button>
+
+            <button className="portal-button admin-button" onClick={() => setView('admin')}>
+              <span className="portal-icon">🛡️</span>
+              <span>Admin</span>
+              <small>Review applications and approve or reject</small>
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="dashboard-shell">
       <aside className="sidebar">
@@ -197,6 +223,9 @@ function App() {
           </button>
           <button className={view === 'admin' ? 'nav-item active' : 'nav-item'} onClick={() => setView('admin')}>
             Admin dashboard
+          </button>
+          <button className="nav-item secondary" onClick={() => setView('choose')}>
+            Switch portal
           </button>
         </nav>
 
