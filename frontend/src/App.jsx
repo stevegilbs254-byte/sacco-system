@@ -1,16 +1,11 @@
 import { useMemo, useState } from 'react';
 import './App.css';
 
-const DEMO_USER = {
-  email: 'stevegilbs254@gamil.com',
-  password: 'steveomo254',
-};
-
 const initialMembers = [
   {
     id: 1,
     name: 'Steve Gilbs',
-    email: 'stevegilbs254@gamil.com',
+    email: 'demo@sacco.co.ke',
     country: 'Kenya',
     phone: '+254712345678',
     joinedAt: '2024-01-15',
@@ -129,17 +124,20 @@ function App() {
   const totalShare = members.reduce((sum, member) => sum + Number(member.share || 0), 0);
 
   const loginMember = () => {
-    const email = login.email.trim().toLowerCase();
+    const email = login.email.trim();
     const password = login.password.trim();
 
-    if (email === DEMO_USER.email.toLowerCase() && password === DEMO_USER.password) {
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const isValidPassword = password.length >= 4;
+
+    if (isValidEmail && isValidPassword) {
       setLoggedIn(true);
       setPage('member');
       setNotification('Welcome back. Your SACCO dashboard is ready.');
       return;
     }
 
-    setNotification('Invalid login. Please use the demo credentials provided.');
+    setNotification('Please enter a valid email and password to continue.');
   };
 
   const addNewMember = () => {
@@ -283,7 +281,7 @@ function App() {
           </div>
 
           <h2>Sign in</h2>
-          <p className="login-subtitle">Use the demo account to access the SACCO portal.</p>
+          <p className="login-subtitle">Use any valid email and password to access the SACCO portal.</p>
 
           <div className="login-form">
             <label>
@@ -291,7 +289,7 @@ function App() {
               <input
                 value={login.email}
                 onChange={(e) => setLogin((current) => ({ ...current, email: e.target.value }))}
-                placeholder="stevegilbs254@gamil.com"
+                placeholder="member@example.com"
               />
             </label>
 
@@ -301,7 +299,7 @@ function App() {
                 type="password"
                 value={login.password}
                 onChange={(e) => setLogin((current) => ({ ...current, password: e.target.value }))}
-                placeholder="steveomo254"
+                placeholder="Enter any password"
               />
             </label>
 
