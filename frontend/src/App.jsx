@@ -169,6 +169,7 @@ function App() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedMember, setSelectedMember] = useState(defaultMemberProfile);
+  const [selectedLoanApplication, setSelectedLoanApplication] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginRole, setLoginRole] = useState('');
   const [memberMode, setMemberMode] = useState(null);
@@ -193,6 +194,28 @@ function App() {
       credentials: { username: 'david.otieno', password: 'SACCO-7KJ4PM' },
       initialSavings: 25000,
       monthlySavings: 5000,
+    },
+  ]);
+  const [loanApplications, setLoanApplications] = useState([
+    {
+      id: 1,
+      memberName: 'Mary Wanjiku Kariuki',
+      memberId: 'SAC-1001',
+      amount: 150000,
+      purpose: 'Business expansion',
+      months: 12,
+      status: 'Pending',
+      appliedOn: '2026-10-10',
+    },
+    {
+      id: 2,
+      memberName: 'Peter Njoroge Mwangi',
+      memberId: 'SAC-1002',
+      amount: 220000,
+      purpose: 'School fees',
+      months: 18,
+      status: 'Approved',
+      appliedOn: '2026-10-05',
     },
   ]);
 
@@ -228,11 +251,24 @@ function App() {
     setLoanNotice('');
     setNewMemberNotice('');
     setMemberMode(null);
+    setSelectedLoanApplication(loanApplications[0] || null);
   };
 
   const handleLogin = () => {
     setIsLoggedIn(true);
     setLoginRole('');
+  };
+
+  const handleLoanDecision = (applicationId, status) => {
+    setLoanApplications((current) =>
+      current.map((application) =>
+        application.id === applicationId ? { ...application, status } : application,
+      ),
+    );
+
+    setSelectedLoanApplication((current) =>
+      current && current.id === applicationId ? { ...current, status } : current,
+    );
   };
 
   const handleLoanSubmit = (event) => {
@@ -243,7 +279,20 @@ function App() {
       return;
     }
 
-    setLoanNotice(`Loan application submitted for KES ${Number(loanForm.amount).toLocaleString()} for ${loanForm.purpose}.`);
+    const newApplication = {
+      id: Date.now(),
+      memberName: memberProfile.name,
+      memberId: memberProfile.memberId,
+      amount: Number(loanForm.amount),
+      purpose: loanForm.purpose,
+      months: Number(loanForm.months),
+      status: 'Pending',
+      appliedOn: new Date().toISOString().slice(0, 10),
+    };
+
+    setLoanApplications((current) => [newApplication, ...current]);
+    setSelectedLoanApplication(newApplication);
+    setLoanNotice(`Loan application submitted for KES ${Number(loanForm.amount).toLocaleString()} for ${loanForm.purpose}. It is now pending admin review.`);
   };
 
   const handleNewMemberSubmit = (event) => {
@@ -283,7 +332,7 @@ function App() {
     setNewMemberForm(emptyMemberForm);
     setMemberMode(null);
     setNewMemberNotice(
-      `Your new member request has been submitted. You started with KES ${Number(newMemberForm.initialSavings).toLocaleString()} and monthly savings of KES ${Number(newMemberForm.monthlySavings).toLocaleString()}. Keep saving until you meet the loan qualification thresholds.`
+      `Your new member request has been submitted. You started with KES ${Number(newMemberForm.initialSavings).toLocaleString()} and monthly savings of KES ${Number(newMemberForm.monthlySavings).toLocaleString()}.`,
     );
   };
 
@@ -979,7 +1028,99 @@ function App() {
                 </div>
               </header>
 
-              <div style={styles.emptyState}>Loan management page is ready for approval workflows.</div>
+              <div style={styles.membersPanel}>
+                <div style={styles.tableWrap}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Member</th>
+                        <th style={styles.th}>Member ID</th>
+                        <th style={styles.th}>Amount</th>
+                        <th style={styles.th}>Purpose</th>
+                        <th style={styles.th}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loanApplications.map((application) => (
+                        <tr
+                          key={application.id}
+                          onClick={() => setSelectedLoanApplication(application)}
+                          style={{
+                            ...styles.tr,
+                            ...(selectedLoanApplication?.id === application.id ? styles.trActive : {}),
+                          }}
+                        >
+                          <td style={styles.td}>{application.memberName}</td>
+                          <td style={styles.td}>{application.memberId}</td>
+                          <td style={styles.td}>{formatCurrency(application.amount)}</td>
+                          <td style={styles.td}>{application.purpose}</td>
+                          <td style={styles.td}>
+                            <span style={{ ...styles.statusPill, ...statusColor(application.status) }}>{application.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={styles.detailCard}>
+                  <div style={styles.detailHeader}>Loan Review</div>
+                  {selectedLoanApplication ? (
+                    <>
+                      <div style={styles.detailTitle}>{selectedLoanApplication.memberName}</div>
+                      <div style={styles.detailMeta}>{selectedLoanApplication.memberId} • Applied {selectedLoanApplication.appliedOn}</div>
+
+                      <div style={styles.detailGrid}>
+                        <div>
+                          <div style={styles.detailLabel}>Loan Amount</div>
+                          <div style={styles.detailValue}>{formatCurrency(selectedLoanApplication.amount)}</div>
+                        </div>
+                        <div>
+                          <div style={styles.detailLabel}>Repayment</div>
+                          <div style={styles.detailValue}>{selectedLoanApplication.months} months</div>
+                        </div>
+                        <div>
+                          <div style={styles.detailLabel}>Purpose</div>
+                          <div style={styles.detailValue}>{selectedLoanApplication.purpose}</div>
+                        </div>
+                        <div>
+                          <div style={styles.detailLabel}>Status</div>
+                          <div style={{ ...styles.detailValue, ...statusColor(selectedLoanApplication.status) }}>
+                            {selectedLoanApplication.status}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '16px' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleLoanDecision(selectedLoanApplication.id, 'Approved')}
+                          style={{
+                            ...styles.primaryButton,
+                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                            boxShadow: '0 18px 28px rgba(16,185,129,0.25)',
+                          }}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleLoanDecision(selectedLoanApplication.id, 'Rejected')}
+                          style={{
+                            ...styles.primaryButton,
+                            background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+                            boxShadow: '0 18px 28px rgba(239,68,68,0.25)',
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={styles.emptyState}>No loan applications yet.</div>
+                  )}
+                </div>
+              </div>
             </>
           ) : (
             <>
@@ -1071,7 +1212,9 @@ function App() {
 
 const statusColor = (status) => {
   if (status === 'Active') return { background: '#d1fae5', color: '#065f46' };
-  if (status === 'Pending') return { background: '#fef3c7', color: '#92400e' };
+  if (status === 'Pending' || status === 'Awaiting admin review') return { background: '#fef3c7', color: '#92400e' };
+  if (status === 'Approved') return { background: '#dcfce7', color: '#166534' };
+  if (status === 'Rejected') return { background: '#fee2e2', color: '#991b1b' };
   return { background: '#fee2e2', color: '#991b1b' };
 };
 
