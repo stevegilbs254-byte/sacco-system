@@ -3,19 +3,19 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 
 const app = express();
-app.use(cors()); // TODO: restrict to your frontend origin in production
+app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 10000; // Render sets PORT
+const PORT = process.env.PORT || 10000;
 
-// ---------- Fallback data (used only when Mongo is not connected) ----------
 const monthsAgo = (n) => new Date(Date.now() - n * 30 * 24 * 60 * 60 * 1000);
+
 const membersCache = [
   { _id: '1', name: 'Steve Gilbs', savings: 45500, joinedAt: monthsAgo(30), hasDefaulted: false },
 ];
+
 const loansCache = [];
 
-// ---------- Schemas ----------
 const MemberSchema = new mongoose.Schema({
   name: { type: String, required: true },
   savings: { type: Number, default: 0 },
@@ -39,14 +39,19 @@ const Loan = mongoose.model('Loan', LoanSchema);
 
 const dbReady = () => mongoose.connection.readyState === 1;
 
-// ---------- Mongo connection (doesn't block server start) ----------
 if (process.env.MONGO_URI) {
-  mongoose.connect(process.env.MONGO_URI)
+  mongoose
+    .connect(process.env.MONGO_URI)
     .then(async () => {
       console.log('MongoDB Connected OK');
       const count = await Member.countDocuments().catch(() => 0);
       if (count === 0) {
-        await Member.create({ name: 'Steve Gilbs', savings: 45500, joinedAt: monthsAgo(30) });
+        await Member.create({
+          name: 'Steve Gilbs',
+          savings: 45500,
+          joinedAt: monthsAgo(30),
+          hasDefaulted: false,
+        });
       }
     })
     .catch((err) => console.log('MongoDB Error:', err.message));
@@ -54,7 +59,6 @@ if (process.env.MONGO_URI) {
   console.log('No MONGO_URI - using memory data');
 }
 
-// ---------- Loan qualification ----------
 function monthsBetween(from, to = new Date()) {
   const d = new Date(from);
   if (isNaN(d)) return 0;
@@ -66,15 +70,21 @@ function checkQualification(member, requestedAmount) {
   const months = monthsBetween(member.joinedAt);
   const limit = months >= 24 ? savings * 4 : savings * 3;
 
-  if (member.hasDefaulted) return { qualified: false, reason: 'Has previous default', limit };
-  if (months < 6) return { qualified: false, reason: 'Member must be 6+ months old', limit };
+  if (member.hasDefaulted) {
+    return { qualified: false, reason: 'Has previous default', limit };
+  }
+
+  if (months < 6) {
+    return { qualified: false, reason: 'Member must be 6+ months old', limit };
+  }
+
   if (requestedAmount > limit) {
     return { qualified: false, reason: `Exceeds limit of KES ${limit}`, limit };
   }
+
   return { qualified: true, limit };
 }
 
-// ---------- Routes ----------
 app.get('/', (req, res) => res.send('SACCO API LIVE'));
 
 app.get('/api/members', async (req, res) => {
@@ -95,7 +105,6 @@ app.get('/api/loans', async (req, res) => {
   res.json(loansCache);
 });
 
-// Loan request with qualification check
 app.post('/api/loans/request', async (req, res) => {
   try {
     const { memberId, amount, reason } = req.body;
@@ -106,6 +115,7 @@ app.post('/api/loans/request', async (req, res) => {
     }
 
     let member;
+
     if (dbReady()) {
       if (!mongoose.isValidObjectId(memberId)) {
         return res.status(400).json({ error: 'Invalid memberId' });
@@ -114,9 +124,13 @@ app.post('/api/loans/request', async (req, res) => {
     } else {
       member = membersCache.find((m) => m._id === String(memberId));
     }
-    if (!member) return res.status(404).json({ error: 'Member not found' });
+
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
 
     const check = checkQualification(member, requested);
+
     if (!check.qualified) {
       return res.status(400).json({ error: check.reason, limit: check.limit });
     }
@@ -133,6 +147,7 @@ app.post('/api/loans/request', async (req, res) => {
       const saved = await Loan.create(loanData);
       return res.status(201).json(saved);
     }
+
     loansCache.push(loanData);
     res.status(201).json(loanData);
   } catch (e) {
@@ -140,7 +155,6 @@ app.post('/api/loans/request', async (req, res) => {
   }
 });
 
-// Legacy route: now goes through the same qualification check
 app.post('/api/loans', (req, res) => {
   req.url = '/api/loans/request';
   app.handle(req, res);
