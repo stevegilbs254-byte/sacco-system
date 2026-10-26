@@ -88,6 +88,11 @@ const formatCurrency = (value = 0) =>
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
 
+const loanQualification = (member) =>
+  member?.status === 'Active' && member?.savings >= 150000 && member?.shares >= 50000;
+
+const defaultMemberProfile = ALL_MEMBERS[1];
+
 const summaryCards = [
   { label: 'Total Members', value: ALL_MEMBERS.length, tone: '#4f46e5' },
   { label: 'Active Members', value: ALL_MEMBERS.filter((m) => m.status === 'Active').length, tone: '#10b981' },
@@ -152,9 +157,19 @@ function App() {
   const [screen, setScreen] = useState('dashboard');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [selectedMember, setSelectedMember] = useState(ALL_MEMBERS[0]);
+  const [selectedMember, setSelectedMember] = useState(defaultMemberProfile);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginRole, setLoginRole] = useState('');
+  const [loanForm, setLoanForm] = useState({
+    amount: 50000,
+    purpose: 'Business growth',
+    months: 12,
+  });
+  const [loanNotice, setLoanNotice] = useState('');
+
+  const memberProfile = loginRole === 'member' ? defaultMemberProfile : selectedMember || defaultMemberProfile;
+  const isAdmin = loginRole === 'admin';
+  const memberCanApply = loanQualification(memberProfile);
 
   const visibleMembers = useMemo(() => {
     return ALL_MEMBERS.filter((member) => {
@@ -172,18 +187,51 @@ function App() {
   const totalShares = ALL_MEMBERS.reduce((sum, member) => sum + member.shares, 0);
 
   const chooseRole = (role) => {
+    const nextMember = role === 'admin' ? ALL_MEMBERS[0] : defaultMemberProfile;
     setLoginRole(role);
+    setSelectedMember(nextMember);
     setCurrentUser({
       name: role === 'admin' ? 'Admin User' : 'Member User',
       role: role === 'admin' ? 'Administrator' : 'Member',
     });
+    setScreen('dashboard');
     setIsLoggedIn(true);
+    setLoanNotice('');
   };
 
   const handleLogin = () => {
     setIsLoggedIn(true);
     setLoginRole('');
   };
+
+  const handleLoanSubmit = (event) => {
+    event.preventDefault();
+
+    if (!memberCanApply) {
+      setLoanNotice('Qualification required: active member, savings above KES 150,000 and shares above KES 50,000.');
+      return;
+    }
+
+    setLoanNotice(`Loan application submitted for KES ${Number(loanForm.amount).toLocaleString()} for ${loanForm.purpose}.`);
+  };
+
+  const dashboardCards = isAdmin
+    ? [
+        { label: 'Total Members', value: ALL_MEMBERS.length, tone: '#4f46e5' },
+        { label: 'Active Members', value: ALL_MEMBERS.filter((m) => m.status === 'Active').length, tone: '#10b981' },
+        { label: 'Pending', value: ALL_MEMBERS.filter((m) => m.status === 'Pending').length, tone: '#f59e0b' },
+        { label: 'Inactive', value: ALL_MEMBERS.filter((m) => m.status === 'Inactive').length, tone: '#ef4444' },
+      ]
+    : [
+        { label: 'Savings', value: formatCurrency(memberProfile.savings), tone: '#10b981' },
+        { label: 'Shares', value: formatCurrency(memberProfile.shares), tone: '#8b5cf6' },
+        { label: 'Loan Balance', value: formatCurrency(memberProfile.loan), tone: '#f59e0b' },
+        {
+          label: 'Qualification',
+          value: memberCanApply ? 'Qualified' : 'Pending',
+          tone: memberCanApply ? '#10b981' : '#f59e0b',
+        },
+      ];
 
   if (!isLoggedIn) {
     return (
@@ -271,7 +319,7 @@ function App() {
             <div style={styles.brandIcon}>S</div>
             <div>
               <div style={styles.brandTitle}>SACCO</div>
-              <div style={styles.brandSub}>{loginRole === 'admin' ? 'Admin Portal' : 'Member Portal'}</div>
+              <div style={styles.brandSub}>{isAdmin ? 'Admin Portal' : 'Member Portal'}</div>
             </div>
           </div>
 
@@ -288,14 +336,14 @@ function App() {
               onClick={() => setScreen('members')}
               style={{ ...styles.navButton, ...(screen === 'members' ? styles.navButtonActive : {}) }}
             >
-              All Members
+              {isAdmin ? 'All Members' : 'My Details'}
             </button>
             <button
               type="button"
               onClick={() => setScreen('loans')}
               style={{ ...styles.navButton, ...(screen === 'loans' ? styles.navButtonActive : {}) }}
             >
-              Loan Requests
+              {isAdmin ? 'Loan Requests' : 'Apply Loan'}
             </button>
             <button
               type="button"
@@ -332,13 +380,13 @@ function App() {
             <header style={styles.headerRow}>
               <div>
                 <p style={styles.kicker}>Overview</p>
-                <h1 style={styles.pageTitle}>SACCO Administration</h1>
+                <h1 style={styles.pageTitle}>{isAdmin ? 'SACCO Administration' : 'My SACCO Dashboard'}</h1>
               </div>
-              <button type="button" style={styles.primaryButton}>+ Add Member</button>
+              <button type="button" style={styles.primaryButton}>{isAdmin ? '+ Add Member' : 'Member Profile'}</button>
             </header>
 
             <section style={styles.summaryGrid}>
-              {summaryCards.map((card) => (
+              {dashboardCards.map((card) => (
                 <div key={card.label} style={{ ...styles.summaryCard, borderTop: `4px solid ${card.tone}` }}>
                   <div style={styles.summaryLabel}>{card.label}</div>
                   <div style={styles.summaryValue}>{card.value}</div>
@@ -347,152 +395,297 @@ function App() {
             </section>
 
             <section style={styles.smallStatsRow}>
-              <div style={styles.statCard}>
-                <div style={styles.statLabel}>Total Savings</div>
-                <div style={styles.statValue}>{formatCurrency(totalSavings)}</div>
-              </div>
-              <div style={styles.statCard}>
-                <div style={styles.statLabel}>Shares</div>
-                <div style={styles.statValue}>{formatCurrency(totalShares)}</div>
-              </div>
-              <div style={styles.statCard}>
-                <div style={styles.statLabel}>Outstanding Loans</div>
-                <div style={styles.statValue}>{formatCurrency(ALL_MEMBERS.reduce((sum, member) => sum + member.loan, 0))}</div>
-              </div>
+              {isAdmin ? (
+                <>
+                  <div style={styles.statCard}>
+                    <div style={styles.statLabel}>Total Savings</div>
+                    <div style={styles.statValue}>{formatCurrency(totalSavings)}</div>
+                  </div>
+                  <div style={styles.statCard}>
+                    <div style={styles.statLabel}>Shares</div>
+                    <div style={styles.statValue}>{formatCurrency(totalShares)}</div>
+                  </div>
+                  <div style={styles.statCard}>
+                    <div style={styles.statLabel}>Outstanding Loans</div>
+                    <div style={styles.statValue}>{formatCurrency(ALL_MEMBERS.reduce((sum, member) => sum + member.loan, 0))}</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={styles.statCard}>
+                    <div style={styles.statLabel}>Available Savings</div>
+                    <div style={styles.statValue}>{formatCurrency(memberProfile.savings)}</div>
+                  </div>
+                  <div style={styles.statCard}>
+                    <div style={styles.statLabel}>Loan Qualification</div>
+                    <div style={styles.statValue}>{memberCanApply ? 'Qualified' : 'Not yet'}</div>
+                  </div>
+                  <div style={styles.statCard}>
+                    <div style={styles.statLabel}>Current Loan</div>
+                    <div style={styles.statValue}>{formatCurrency(memberProfile.loan)}</div>
+                  </div>
+                </>
+              )}
             </section>
           </>
         )}
 
         {screen === 'members' && (
-          <>
-            <header style={styles.headerRow}>
-              <div>
-                <p style={styles.kicker}>Directory</p>
-                <h1 style={styles.pageTitle}>All Members</h1>
+          isAdmin ? (
+            <>
+              <header style={styles.headerRow}>
+                <div>
+                  <p style={styles.kicker}>Directory</p>
+                  <h1 style={styles.pageTitle}>All Members</h1>
+                </div>
+                <button type="button" style={styles.primaryButton}>Register New Member</button>
+              </header>
+
+              <div style={styles.filterBar}>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search member, email or ID"
+                  style={styles.searchInput}
+                />
+
+                <select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  style={styles.selectInput}
+                >
+                  <option value="All">All Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
               </div>
-              <button type="button" style={styles.primaryButton}>Register New Member</button>
-            </header>
 
-            <div style={styles.filterBar}>
-              <input
-                type="text"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search member, email or ID"
-                style={styles.searchInput}
-              />
-
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                style={styles.selectInput}
-              >
-                <option value="All">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Pending">Pending</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-
-            <div style={styles.membersPanel}>
-              <div style={styles.tableWrap}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Member</th>
-                      <th style={styles.th}>Member ID</th>
-                      <th style={styles.th}>Phone</th>
-                      <th style={styles.th}>Branch</th>
-                      <th style={styles.th}>Status</th>
-                      <th style={styles.th}>Savings</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleMembers.map((member) => (
-                      <tr
-                        key={member.id}
-                        onClick={() => setSelectedMember(member)}
-                        style={{
-                          ...styles.tr,
-                          ...(selectedMember?.id === member.id ? styles.trActive : {}),
-                        }}
-                      >
-                        <td style={styles.td}>
-                          <div style={styles.memberCell}>
-                            <div style={styles.memberAvatar}>{member.name.split(' ').slice(0, 2).map((n) => n[0]).join('')}</div>
-                            <div>
-                              <div style={styles.memberName}>{member.name}</div>
-                              <div style={styles.memberEmail}>{member.email}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td style={styles.td}>{member.memberId}</td>
-                        <td style={styles.td}>{member.phone}</td>
-                        <td style={styles.td}>{member.branch}</td>
-                        <td style={styles.td}>
-                          <span style={{ ...styles.statusPill, ...statusColor(member.status) }}>{member.status}</span>
-                        </td>
-                        <td style={styles.td}>{formatCurrency(member.savings)}</td>
+              <div style={styles.membersPanel}>
+                <div style={styles.tableWrap}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Member</th>
+                        <th style={styles.th}>Member ID</th>
+                        <th style={styles.th}>Phone</th>
+                        <th style={styles.th}>Branch</th>
+                        <th style={styles.th}>Status</th>
+                        <th style={styles.th}>Savings</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {visibleMembers.map((member) => (
+                        <tr
+                          key={member.id}
+                          onClick={() => setSelectedMember(member)}
+                          style={{
+                            ...styles.tr,
+                            ...(selectedMember?.id === member.id ? styles.trActive : {}),
+                          }}
+                        >
+                          <td style={styles.td}>
+                            <div style={styles.memberCell}>
+                              <div style={styles.memberAvatar}>{member.name.split(' ').slice(0, 2).map((n) => n[0]).join('')}</div>
+                              <div>
+                                <div style={styles.memberName}>{member.name}</div>
+                                <div style={styles.memberEmail}>{member.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={styles.td}>{member.memberId}</td>
+                          <td style={styles.td}>{member.phone}</td>
+                          <td style={styles.td}>{member.branch}</td>
+                          <td style={styles.td}>
+                            <span style={{ ...styles.statusPill, ...statusColor(member.status) }}>{member.status}</span>
+                          </td>
+                          <td style={styles.td}>{formatCurrency(member.savings)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={styles.detailCard}>
+                  <div style={styles.detailHeader}>Member Details</div>
+                  <div style={styles.detailTitle}>{selectedMember?.name}</div>
+                  <div style={styles.detailMeta}>{selectedMember?.memberId} • {selectedMember?.branch}</div>
+
+                  <div style={styles.detailGrid}>
+                    <div>
+                      <div style={styles.detailLabel}>Email</div>
+                      <div style={styles.detailValue}>{selectedMember?.email}</div>
+                    </div>
+                    <div>
+                      <div style={styles.detailLabel}>Phone</div>
+                      <div style={styles.detailValue}>{selectedMember?.phone}</div>
+                    </div>
+                    <div>
+                      <div style={styles.detailLabel}>Joined</div>
+                      <div style={styles.detailValue}>{selectedMember?.joined}</div>
+                    </div>
+                    <div>
+                      <div style={styles.detailLabel}>Status</div>
+                      <div style={{ ...styles.detailValue, ...statusColor(selectedMember?.status) }}>{selectedMember?.status}</div>
+                    </div>
+                  </div>
+
+                  <div style={styles.amountGrid}>
+                    <div style={styles.amountBox}>
+                      <div style={styles.amountLabel}>Savings</div>
+                      <div style={styles.amountValue}>{formatCurrency(selectedMember?.savings)}</div>
+                    </div>
+                    <div style={styles.amountBox}>
+                      <div style={styles.amountLabel}>Shares</div>
+                      <div style={styles.amountValue}>{formatCurrency(selectedMember?.shares)}</div>
+                    </div>
+                    <div style={styles.amountBox}>
+                      <div style={styles.amountLabel}>Loan Balance</div>
+                      <div style={styles.amountValue}>{formatCurrency(selectedMember?.loan)}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
+            </>
+          ) : (
+            <>
+              <header style={styles.headerRow}>
+                <div>
+                  <p style={styles.kicker}>Profile</p>
+                  <h1 style={styles.pageTitle}>My Details</h1>
+                </div>
+              </header>
 
               <div style={styles.detailCard}>
-                <div style={styles.detailHeader}>Member Details</div>
-                <div style={styles.detailTitle}>{selectedMember?.name}</div>
-                <div style={styles.detailMeta}>{selectedMember?.memberId} • {selectedMember?.branch}</div>
+                <div style={styles.detailTitle}>{memberProfile.name}</div>
+                <div style={styles.detailMeta}>{memberProfile.memberId} • {memberProfile.branch}</div>
 
                 <div style={styles.detailGrid}>
                   <div>
                     <div style={styles.detailLabel}>Email</div>
-                    <div style={styles.detailValue}>{selectedMember?.email}</div>
+                    <div style={styles.detailValue}>{memberProfile.email}</div>
                   </div>
                   <div>
                     <div style={styles.detailLabel}>Phone</div>
-                    <div style={styles.detailValue}>{selectedMember?.phone}</div>
+                    <div style={styles.detailValue}>{memberProfile.phone}</div>
                   </div>
                   <div>
                     <div style={styles.detailLabel}>Joined</div>
-                    <div style={styles.detailValue}>{selectedMember?.joined}</div>
+                    <div style={styles.detailValue}>{memberProfile.joined}</div>
                   </div>
                   <div>
                     <div style={styles.detailLabel}>Status</div>
-                    <div style={{ ...styles.detailValue, ...statusColor(selectedMember?.status) }}>{selectedMember?.status}</div>
+                    <div style={{ ...styles.detailValue, ...statusColor(memberProfile.status) }}>{memberProfile.status}</div>
                   </div>
                 </div>
 
                 <div style={styles.amountGrid}>
                   <div style={styles.amountBox}>
                     <div style={styles.amountLabel}>Savings</div>
-                    <div style={styles.amountValue}>{formatCurrency(selectedMember?.savings)}</div>
+                    <div style={styles.amountValue}>{formatCurrency(memberProfile.savings)}</div>
                   </div>
                   <div style={styles.amountBox}>
                     <div style={styles.amountLabel}>Shares</div>
-                    <div style={styles.amountValue}>{formatCurrency(selectedMember?.shares)}</div>
+                    <div style={styles.amountValue}>{formatCurrency(memberProfile.shares)}</div>
                   </div>
                   <div style={styles.amountBox}>
                     <div style={styles.amountLabel}>Loan Balance</div>
-                    <div style={styles.amountValue}>{formatCurrency(selectedMember?.loan)}</div>
+                    <div style={styles.amountValue}>{formatCurrency(memberProfile.loan)}</div>
                   </div>
                 </div>
+
+                <div style={{ ...styles.emptyState, marginTop: '18px' }}>
+                  {memberCanApply
+                    ? 'You qualify for a loan. You can submit an application below.'
+                    : 'Qualification required: active status, savings of at least KES 150,000 and shares of at least KES 50,000.'}
+                </div>
               </div>
-            </div>
-          </>
+            </>
+          )
         )}
 
         {screen === 'loans' && (
-          <>
-            <header style={styles.headerRow}>
-              <div>
-                <p style={styles.kicker}>Operations</p>
-                <h1 style={styles.pageTitle}>Loan Requests</h1>
-              </div>
-            </header>
+          isAdmin ? (
+            <>
+              <header style={styles.headerRow}>
+                <div>
+                  <p style={styles.kicker}>Operations</p>
+                  <h1 style={styles.pageTitle}>Loan Requests</h1>
+                </div>
+              </header>
 
-            <div style={styles.emptyState}>Loan management page is ready for approval workflows.</div>
-          </>
+              <div style={styles.emptyState}>Loan management page is ready for approval workflows.</div>
+            </>
+          ) : (
+            <>
+              <header style={styles.headerRow}>
+                <div>
+                  <p style={styles.kicker}>Member finance</p>
+                  <h1 style={styles.pageTitle}>Apply for a Loan</h1>
+                </div>
+              </header>
+
+              <div style={styles.loanCard}>
+                <div style={{ ...styles.emptyState, marginBottom: '16px', background: memberCanApply ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)' }}>
+                  {memberCanApply
+                    ? 'Congratulations! You have passed the qualification check and can apply for a loan.'
+                    : 'Qualification required: active member, savings above KES 150,000 and shares above KES 50,000.'}
+                </div>
+
+                <form onSubmit={handleLoanSubmit} style={styles.loanForm}>
+                  <div style={styles.formGroupLoan}>
+                    <label style={styles.label}>Loan Amount</label>
+                    <input
+                      style={styles.input}
+                      type="number"
+                      min="5000"
+                      step="5000"
+                      value={loanForm.amount}
+                      onChange={(event) => setLoanForm((current) => ({ ...current, amount: Number(event.target.value) || 0 }))}
+                      disabled={!memberCanApply}
+                    />
+                  </div>
+
+                  <div style={styles.formGroupLoan}>
+                    <label style={styles.label}>Purpose</label>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      value={loanForm.purpose}
+                      onChange={(event) => setLoanForm((current) => ({ ...current, purpose: event.target.value }))}
+                      disabled={!memberCanApply}
+                    />
+                  </div>
+
+                  <div style={styles.formGroupLoan}>
+                    <label style={styles.label}>Repayment Months</label>
+                    <select
+                      style={styles.selectInput}
+                      value={loanForm.months}
+                      onChange={(event) => setLoanForm((current) => ({ ...current, months: Number(event.target.value) }))}
+                      disabled={!memberCanApply}
+                    >
+                      <option value={6}>6 Months</option>
+                      <option value={12}>12 Months</option>
+                      <option value={18}>18 Months</option>
+                      <option value={24}>24 Months</option>
+                    </select>
+                  </div>
+
+                  <button type="submit" style={{ ...styles.primaryButton, opacity: memberCanApply ? 1 : 0.6 }} disabled={!memberCanApply}>
+                    {memberCanApply ? 'Submit Loan Application' : 'Loan Not Qualified'}
+                  </button>
+                </form>
+
+                {loanNotice && (
+                  <div style={{ ...styles.emptyState, marginTop: '18px', color: '#d1fae5', background: 'rgba(16,185,129,0.08)' }}>
+                    {loanNotice}
+                  </div>
+                )}
+              </div>
+            </>
+          )
         )}
 
         {screen === 'reports' && (
@@ -599,6 +792,13 @@ const styles = {
     flexDirection: 'column',
     gap: '8px',
     marginBottom: '16px',
+  },
+  formGroupLoan: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    marginBottom: '16px',
+    width: '100%',
   },
   label: {
     fontSize: '13px',
@@ -1240,6 +1440,20 @@ const styles = {
     color: '#cbd5e1',
     fontSize: '16px',
     boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
+  },
+  loanCard: {
+    background: 'rgba(15, 23, 42, 0.8)',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
+  },
+  loanForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    width: '100%',
+    maxWidth: '520px',
   },
 };
 
