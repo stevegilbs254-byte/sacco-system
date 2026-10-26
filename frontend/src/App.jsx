@@ -1,174 +1,181 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import './App.css';
 
-const buttons = [
-  { label: 'C', type: 'clear' },
-  { label: '+/-', type: 'toggle' },
-  { label: '%', type: 'percent' },
-  { label: '/', type: 'operator' },
-  { label: '7', type: 'digit' },
-  { label: '8', type: 'digit' },
-  { label: '9', type: 'digit' },
-  { label: '*', type: 'operator' },
-  { label: '4', type: 'digit' },
-  { label: '5', type: 'digit' },
-  { label: '6', type: 'digit' },
-  { label: '-', type: 'operator' },
-  { label: '1', type: 'digit' },
-  { label: '2', type: 'digit' },
-  { label: '3', type: 'digit' },
-  { label: '+', type: 'operator' },
-  { label: '0', type: 'digit', wide: true },
-  { label: '.', type: 'decimal' },
-  { label: '=', type: 'equals' },
-];
+const defaultForm = {
+  memberName: 'Steve Gilbs',
+  savings: 45500,
+  monthsJoined: 30,
+  hasDefaulted: false,
+  requestedAmount: 120000,
+};
 
-function calculate(firstValue, secondValue, operation) {
-  switch (operation) {
-    case '+':
-      return firstValue + secondValue;
-    case '-':
-      return firstValue - secondValue;
-    case '*':
-      return firstValue * secondValue;
-    case '/':
-      return secondValue === 0 ? 'Error' : firstValue / secondValue;
-    default:
-      return secondValue;
+const formatCurrency = (value) =>
+  new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+
+function checkQualification(member, requestedAmount) {
+  const savings = Number(member.savings || 0);
+  const months = Number(member.monthsJoined || 0);
+  const limit = months >= 24 ? savings * 4 : savings * 3;
+
+  if (member.hasDefaulted) {
+    return { qualified: false, reason: 'Has previous default', limit };
   }
+
+  if (months < 6) {
+    return { qualified: false, reason: 'Member must be 6+ months old', limit };
+  }
+
+  if (requestedAmount > limit) {
+    return { qualified: false, reason: `Exceeds limit of ${formatCurrency(limit)}`, limit };
+  }
+
+  return { qualified: true, reason: 'Eligible for the requested loan amount.', limit };
 }
 
 function App() {
-  const [display, setDisplay] = useState('0');
-  const [storedValue, setStoredValue] = useState(null);
-  const [operator, setOperator] = useState(null);
-  const [waitingForNext, setWaitingForNext] = useState(false);
+  const [formData, setFormData] = useState(defaultForm);
+  const [result, setResult] = useState(() => checkQualification(defaultForm, defaultForm.requestedAmount));
 
-  const resetCalculator = () => {
-    setDisplay('0');
-    setStoredValue(null);
-    setOperator(null);
-    setWaitingForNext(false);
+  const changeHandler = (event) => {
+    const { name, type, value, checked } = event.target;
+    const nextValue = type === 'checkbox' ? checked : value;
+
+    setFormData((current) => ({
+      ...current,
+      [name]: nextValue,
+    }));
   };
 
-  const handleDigit = (value) => {
-    if (waitingForNext) {
-      setDisplay(String(value));
-      setWaitingForNext(false);
-      return;
-    }
+  const calculateLimit = useMemo(() => {
+    const savings = Number(formData.savings || 0);
+    const months = Number(formData.monthsJoined || 0);
+    return months >= 24 ? savings * 4 : savings * 3;
+  }, [formData.savings, formData.monthsJoined]);
 
-    setDisplay((current) => (current === '0' ? String(value) : current + value));
+  const submitQualification = (event) => {
+    event.preventDefault();
+    const checked = checkQualification(formData, Number(formData.requestedAmount || 0));
+    setResult(checked);
   };
 
-  const handleDecimal = () => {
-    if (waitingForNext) {
-      setDisplay('0.');
-      setWaitingForNext(false);
-      return;
-    }
-
-    setDisplay((current) => (current.includes('.') ? current : `${current}.`));
-  };
-
-  const handleToggle = () => {
-    const currentValue = Number(display);
-    setDisplay(String(currentValue * -1));
-  };
-
-  const handlePercent = () => {
-    const currentValue = Number(display) / 100;
-    setDisplay(String(currentValue));
-  };
-
-  const handleOperator = (nextOperator) => {
-    const value = Number(display);
-
-    if (storedValue === null) {
-      setStoredValue(value);
-    } else if (operator) {
-      const result = calculate(storedValue, value, operator);
-      setStoredValue(result);
-      setDisplay(String(result));
-    }
-
-    setOperator(nextOperator);
-    setWaitingForNext(true);
-  };
-
-  const handleEquals = () => {
-    if (operator === null || storedValue === null) {
-      return;
-    }
-
-    const value = Number(display);
-    const result = calculate(storedValue, value, operator);
-
-    setDisplay(String(result));
-    setStoredValue(null);
-    setOperator(null);
-    setWaitingForNext(true);
-  };
-
-  const handleButtonClick = (button) => {
-    if (button.type === 'digit') {
-      handleDigit(button.label);
-      return;
-    }
-
-    if (button.type === 'decimal') {
-      handleDecimal();
-      return;
-    }
-
-    if (button.type === 'toggle') {
-      handleToggle();
-      return;
-    }
-
-    if (button.type === 'percent') {
-      handlePercent();
-      return;
-    }
-
-    if (button.type === 'clear') {
-      resetCalculator();
-      return;
-    }
-
-    if (button.type === 'operator') {
-      handleOperator(button.label);
-      return;
-    }
-
-    if (button.type === 'equals') {
-      handleEquals();
-    }
+  const resetForm = () => {
+    setFormData(defaultForm);
+    setResult(checkQualification(defaultForm, defaultForm.requestedAmount));
   };
 
   return (
-    <main className="calculator-page">
-      <div className="calculator">
-        <div className="calculator-screen">
-          <div className="calculator-history">
-            {storedValue !== null ? `${storedValue} ${operator ?? ''}` : '0'}
+    <main className="page-shell">
+      <div className="glow glow-left" />
+      <div className="glow glow-right" />
+
+      <section className="loan-card">
+        <div className="header-band">
+          <div>
+            <p className="eyebrow">SACCO member portal</p>
+            <h1>Loan Qualification Check</h1>
           </div>
-          <div className="calculator-display">{display}</div>
+          <div className="status-pill status-pill--neutral">Live eligibility</div>
         </div>
 
-        <div className="calculator-grid">
-          {buttons.map((button) => (
-            <button
-              key={`${button.label}-${button.type}`}
-              type="button"
-              className={`key ${button.type} ${button.wide ? 'wide' : ''}`}
-              onClick={() => handleButtonClick(button)}
-            >
-              {button.label}
-            </button>
-          ))}
+        <div className="summary-grid">
+          <div className="summary-box summary-box--primary">
+            <span>Available limit</span>
+            <strong>{formatCurrency(calculateLimit)}</strong>
+          </div>
+          <div className="summary-box">
+            <span>Member savings</span>
+            <strong>{formatCurrency(Number(formData.savings || 0))}</strong>
+          </div>
+          <div className="summary-box">
+            <span>Membership</span>
+            <strong>{formData.monthsJoined || 0} months</strong>
+          </div>
         </div>
-      </div>
+
+        <form className="qualification-form" onSubmit={submitQualification}>
+          <div className="field-group">
+            <label htmlFor="memberName">Member name</label>
+            <input
+              id="memberName"
+              name="memberName"
+              type="text"
+              value={formData.memberName}
+              onChange={changeHandler}
+              placeholder="Enter member name"
+            />
+          </div>
+
+          <div className="field-row">
+            <div className="field-group">
+              <label htmlFor="savings">Savings balance</label>
+              <input
+                id="savings"
+                name="savings"
+                type="number"
+                min="0"
+                value={formData.savings}
+                onChange={changeHandler}
+              />
+            </div>
+
+            <div className="field-group">
+              <label htmlFor="monthsJoined">Membership duration</label>
+              <input
+                id="monthsJoined"
+                name="monthsJoined"
+                type="number"
+                min="0"
+                value={formData.monthsJoined}
+                onChange={changeHandler}
+              />
+            </div>
+          </div>
+
+          <div className="field-row field-row--inline">
+            <div className="field-group">
+              <label htmlFor="requestedAmount">Requested loan amount</label>
+              <input
+                id="requestedAmount"
+                name="requestedAmount"
+                type="number"
+                min="0"
+                value={formData.requestedAmount}
+                onChange={changeHandler}
+              />
+            </div>
+
+            <label className="checkbox-box" htmlFor="hasDefaulted">
+              <input
+                id="hasDefaulted"
+                name="hasDefaulted"
+                type="checkbox"
+                checked={formData.hasDefaulted}
+                onChange={changeHandler}
+              />
+              <span>Previous default</span>
+            </label>
+          </div>
+
+          <div className="button-row">
+            <button type="submit" className="primary-btn">Check qualification</button>
+            <button type="button" className="secondary-btn" onClick={resetForm}>Reset</button>
+          </div>
+        </form>
+
+        <div className={`result-panel ${result.qualified ? 'result-panel--success' : 'result-panel--warning'}`}>
+          <div className="result-badge">{result.qualified ? 'Qualified' : 'Not qualified'}</div>
+          <h2>{result.qualified ? 'You are eligible to apply.' : 'Review before applying.'}</h2>
+          <p>{result.reason}</p>
+          <div className="result-meta">
+            <span>Loan limit: {formatCurrency(result.limit)}</span>
+            <span>Requested: {formatCurrency(Number(formData.requestedAmount || 0))}</span>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
