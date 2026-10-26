@@ -93,6 +93,15 @@ const loanQualification = (member) =>
 
 const defaultMemberProfile = ALL_MEMBERS[1];
 
+const emptyMemberForm = {
+  name: '',
+  email: '',
+  phone: '',
+  branch: '',
+  memberId: '',
+  cvName: '',
+};
+
 const summaryCards = [
   { label: 'Total Members', value: ALL_MEMBERS.length, tone: '#4f46e5' },
   { label: 'Active Members', value: ALL_MEMBERS.filter((m) => m.status === 'Active').length, tone: '#10b981' },
@@ -166,6 +175,21 @@ function App() {
     months: 12,
   });
   const [loanNotice, setLoanNotice] = useState('');
+  const [newMemberForm, setNewMemberForm] = useState(emptyMemberForm);
+  const [newMemberNotice, setNewMemberNotice] = useState('');
+  const [memberApplications, setMemberApplications] = useState([
+    {
+      id: 101,
+      name: 'David Otieno',
+      email: 'david.otieno@sacco.co.ke',
+      phone: '+254700112233',
+      branch: 'Mombasa',
+      memberId: 'SAC-2001',
+      cvName: 'david-otieno-cv.pdf',
+      status: 'Awaiting admin review',
+      credentials: { username: 'david.otieno', password: 'SACCO-7KJ4PM' },
+    },
+  ]);
 
   const memberProfile = loginRole === 'member' ? defaultMemberProfile : selectedMember || defaultMemberProfile;
   const isAdmin = loginRole === 'admin';
@@ -197,6 +221,7 @@ function App() {
     setScreen('dashboard');
     setIsLoggedIn(true);
     setLoanNotice('');
+    setNewMemberNotice('');
   };
 
   const handleLogin = () => {
@@ -213,6 +238,34 @@ function App() {
     }
 
     setLoanNotice(`Loan application submitted for KES ${Number(loanForm.amount).toLocaleString()} for ${loanForm.purpose}.`);
+  };
+
+  const handleNewMemberSubmit = (event) => {
+    event.preventDefault();
+
+    if (!newMemberForm.name || !newMemberForm.email || !newMemberForm.phone || !newMemberForm.branch || !newMemberForm.memberId) {
+      setNewMemberNotice('Please fill in all required employee details before submitting.');
+      return;
+    }
+
+    const username = newMemberForm.email.split('@')[0].toLowerCase().replace(/[^a-z0-9.]/g, '.');
+    const password = `SACCO-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+    const application = {
+      id: Date.now(),
+      name: newMemberForm.name,
+      email: newMemberForm.email,
+      phone: newMemberForm.phone,
+      branch: newMemberForm.branch,
+      memberId: newMemberForm.memberId,
+      cvName: newMemberForm.cvName || 'No CV uploaded',
+      status: 'Awaiting admin review',
+      credentials: { username, password },
+    };
+
+    setMemberApplications((current) => [application, ...current]);
+    setNewMemberForm(emptyMemberForm);
+    setNewMemberNotice('Your details have been submitted to the admin. Credentials and CV will be reviewed.');
   };
 
   const dashboardCards = isAdmin
@@ -333,10 +386,10 @@ function App() {
             </button>
             <button
               type="button"
-              onClick={() => setScreen('members')}
-              style={{ ...styles.navButton, ...(screen === 'members' ? styles.navButtonActive : {}) }}
+              onClick={() => setScreen(isAdmin ? 'members' : 'new-member')}
+              style={{ ...styles.navButton, ...(screen === (isAdmin ? 'members' : 'new-member') ? styles.navButtonActive : {}) }}
             >
-              {isAdmin ? 'All Members' : 'My Details'}
+              {isAdmin ? 'All Members' : 'Add My Details'}
             </button>
             <button
               type="button"
@@ -345,6 +398,15 @@ function App() {
             >
               {isAdmin ? 'Loan Requests' : 'Apply Loan'}
             </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setScreen('new-member')}
+                style={{ ...styles.navButton, ...(screen === 'new-member' ? styles.navButtonActive : {}) }}
+              >
+                New Employee
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setScreen('reports')}
@@ -382,7 +444,9 @@ function App() {
                 <p style={styles.kicker}>Overview</p>
                 <h1 style={styles.pageTitle}>{isAdmin ? 'SACCO Administration' : 'My SACCO Dashboard'}</h1>
               </div>
-              <button type="button" style={styles.primaryButton}>{isAdmin ? '+ Add Member' : 'Member Profile'}</button>
+              <button type="button" style={styles.primaryButton} onClick={() => setScreen('new-member')}>
+                {isAdmin ? '+ Add Member' : 'Add My Details'}
+              </button>
             </header>
 
             <section style={styles.summaryGrid}>
@@ -430,6 +494,170 @@ function App() {
           </>
         )}
 
+        {screen === 'new-member' && (
+          isAdmin ? (
+            <>
+              <header style={styles.headerRow}>
+                <div>
+                  <p style={styles.kicker}>Recruitment</p>
+                  <h1 style={styles.pageTitle}>New Employee Review</h1>
+                </div>
+              </header>
+
+              <div style={styles.membersPanel}>
+                <div style={styles.tableWrap}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Applicant</th>
+                        <th style={styles.th}>Branch</th>
+                        <th style={styles.th}>CV</th>
+                        <th style={styles.th}>Credentials</th>
+                        <th style={styles.th}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {memberApplications.map((application) => (
+                        <tr key={application.id} style={styles.tr}>
+                          <td style={styles.td}>
+                            <div style={styles.memberCell}>
+                              <div style={styles.memberAvatar}>{application.name.split(' ').slice(0, 2).map((n) => n[0]).join('')}</div>
+                              <div>
+                                <div style={styles.memberName}>{application.name}</div>
+                                <div style={styles.memberEmail}>{application.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={styles.td}>{application.branch}</td>
+                          <td style={styles.td}>{application.cvName}</td>
+                          <td style={styles.td}>
+                            <div><strong>Username:</strong> {application.credentials?.username}</div>
+                            <div><strong>Password:</strong> {application.credentials?.password}</div>
+                          </td>
+                          <td style={styles.td}>
+                            <span style={{ ...styles.statusPill, ...statusColor(application.status === 'Awaiting admin review' ? 'Pending' : application.status) }}>
+                              {application.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={styles.detailCard}>
+                  <div style={styles.detailHeader}>Admin Action</div>
+                  <div style={styles.detailTitle}>New employee credentials</div>
+                  <div style={styles.detailMeta}>Review uploaded CVs and generated access details before approval.</div>
+
+                  {memberApplications.length === 0 ? (
+                    <div style={styles.emptyState}>No new employee submissions yet.</div>
+                  ) : (
+                    memberApplications.map((application) => (
+                      <div key={`admin-${application.id}`} style={{ ...styles.amountBox, marginBottom: '12px' }}>
+                        <div style={styles.amountLabel}>{application.name}</div>
+                        <div style={styles.detailValue}>Username: {application.credentials?.username}</div>
+                        <div style={styles.detailValue}>Password: {application.credentials?.password}</div>
+                        <div style={{ ...styles.detailValue, marginTop: '8px' }}>CV: {application.cvName}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <header style={styles.headerRow}>
+                <div>
+                  <p style={styles.kicker}>Member registration</p>
+                  <h1 style={styles.pageTitle}>Add my details</h1>
+                </div>
+              </header>
+
+              <div style={styles.loanCard}>
+                <div style={{ ...styles.emptyState, marginBottom: '18px', background: 'rgba(59,130,246,0.08)' }}>
+                  Add your personal details below. Once submitted, they are sent to the admin for review and a secure credential will be created for you.
+                </div>
+
+                <form onSubmit={handleNewMemberSubmit} style={styles.loanForm}>
+                  <div style={styles.formGroupLoan}>
+                    <label style={styles.label}>Full name</label>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      value={newMemberForm.name}
+                      onChange={(event) => setNewMemberForm((current) => ({ ...current, name: event.target.value }))}
+                    />
+                  </div>
+
+                  <div style={styles.formGroupLoan}>
+                    <label style={styles.label}>Email</label>
+                    <input
+                      style={styles.input}
+                      type="email"
+                      value={newMemberForm.email}
+                      onChange={(event) => setNewMemberForm((current) => ({ ...current, email: event.target.value }))}
+                    />
+                  </div>
+
+                  <div style={styles.formGroupLoan}>
+                    <label style={styles.label}>Phone number</label>
+                    <input
+                      style={styles.input}
+                      type="tel"
+                      value={newMemberForm.phone}
+                      onChange={(event) => setNewMemberForm((current) => ({ ...current, phone: event.target.value }))}
+                    />
+                  </div>
+
+                  <div style={styles.formGroupLoan}>
+                    <label style={styles.label}>Branch</label>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      value={newMemberForm.branch}
+                      onChange={(event) => setNewMemberForm((current) => ({ ...current, branch: event.target.value }))}
+                    />
+                  </div>
+
+                  <div style={styles.formGroupLoan}>
+                    <label style={styles.label}>Member ID</label>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      value={newMemberForm.memberId}
+                      onChange={(event) => setNewMemberForm((current) => ({ ...current, memberId: event.target.value }))}
+                    />
+                  </div>
+
+                  <div style={styles.formGroupLoan}>
+                    <label style={styles.label}>CV upload</label>
+                    <input
+                      style={styles.input}
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          setNewMemberForm((current) => ({ ...current, cvName: file.name }));
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <button type="submit" style={styles.primaryButton}>Send details to admin</button>
+                </form>
+
+                {newMemberNotice && (
+                  <div style={{ ...styles.emptyState, marginTop: '18px', background: 'rgba(16,185,129,0.08)', color: '#d1fae5' }}>
+                    {newMemberNotice}
+                  </div>
+                )}
+              </div>
+            </>
+          )
+        )}
+
         {screen === 'members' && (
           isAdmin ? (
             <>
@@ -438,7 +666,7 @@ function App() {
                   <p style={styles.kicker}>Directory</p>
                   <h1 style={styles.pageTitle}>All Members</h1>
                 </div>
-                <button type="button" style={styles.primaryButton}>Register New Member</button>
+                <button type="button" style={styles.primaryButton} onClick={() => setScreen('new-member')}>Register New Member</button>
               </header>
 
               <div style={styles.filterBar}>
