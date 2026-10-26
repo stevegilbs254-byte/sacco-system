@@ -1,122 +1,175 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import './App.css';
 
-const API_URL = "https://sacco-system-zmb4.onrender.com";
+const buttons = [
+  { label: 'C', type: 'clear' },
+  { label: '+/-', type: 'toggle' },
+  { label: '%', type: 'percent' },
+  { label: '/', type: 'operator' },
+  { label: '7', type: 'digit' },
+  { label: '8', type: 'digit' },
+  { label: '9', type: 'digit' },
+  { label: '*', type: 'operator' },
+  { label: '4', type: 'digit' },
+  { label: '5', type: 'digit' },
+  { label: '6', type: 'digit' },
+  { label: '-', type: 'operator' },
+  { label: '1', type: 'digit' },
+  { label: '2', type: 'digit' },
+  { label: '3', type: 'digit' },
+  { label: '+', type: 'operator' },
+  { label: '0', type: 'digit', wide: true },
+  { label: '.', type: 'decimal' },
+  { label: '=', type: 'equals' },
+];
+
+function calculate(firstValue, secondValue, operation) {
+  switch (operation) {
+    case '+':
+      return firstValue + secondValue;
+    case '-':
+      return firstValue - secondValue;
+    case '*':
+      return firstValue * secondValue;
+    case '/':
+      return secondValue === 0 ? 'Error' : firstValue / secondValue;
+    default:
+      return secondValue;
+  }
+}
 
 function App() {
-  const [members, setMembers] = useState([]);
-  const [loans, setLoans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState("Connecting...");
-  const [amount, setAmount] = useState("");
-  const [reason, setReason] = useState("");
+  const [display, setDisplay] = useState('0');
+  const [storedValue, setStoredValue] = useState(null);
+  const [operator, setOperator] = useState(null);
+  const [waitingForNext, setWaitingForNext] = useState(false);
 
-  // Load data from live backend
-  const loadData = async () => {
-    try {
-      const mRes = await fetch(`${API_URL}/api/members`);
-      if (!mRes.ok) throw new Error("Members failed");
-      const mData = await mRes.json();
-
-      const lRes = await fetch(`${API_URL}/api/loans`);
-      if (!lRes.ok) throw new Error("Loans failed");
-      const lData = await lRes.json();
-
-      setMembers(mData);
-      setLoans(lData);
-      setStatus("✅ Connected to LIVE Backend");
-      setLoading(false);
-    } catch (err) {
-      console.log("Backend waking up...", err);
-      setStatus("⏳ Backend sleeping, waking up in 30 sec... Keep this page open");
-      // Auto retry
-      setTimeout(loadData, 5000);
-    }
+  const resetCalculator = () => {
+    setDisplay('0');
+    setStoredValue(null);
+    setOperator(null);
+    setWaitingForNext(false);
   };
 
-  useEffect(() => {
-    loadData();
-    const timer = setInterval(loadData, 10000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const requestLoan = async (e) => {
-    e.preventDefault();
-    if (!amount) return alert("Enter amount");
-    try {
-      const res = await fetch(`${API_URL}/api/loans`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          memberName: "Steve Gilbs", 
-          amount: Number(amount), 
-          reason: reason || "General" 
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert("Loan Requested! ✅");
-        setAmount("");
-        setReason("");
-        loadData();
-      } else {
-        alert("Error: " + data.error);
-      }
-    } catch (err) {
-      alert("Backend sleeping, try again in 30 sec");
-      loadData();
+  const handleDigit = (value) => {
+    if (waitingForNext) {
+      setDisplay(String(value));
+      setWaitingForNext(false);
+      return;
     }
+
+    setDisplay((current) => (current === '0' ? String(value) : current + value));
   };
 
-  const totalSavings = members.reduce((sum, m) => sum + (m.savings || 0), 0);
+  const handleDecimal = () => {
+    if (waitingForNext) {
+      setDisplay('0.');
+      setWaitingForNext(false);
+      return;
+    }
+
+    setDisplay((current) => (current.includes('.') ? current : `${current}.`));
+  };
+
+  const handleToggle = () => {
+    const currentValue = Number(display);
+    setDisplay(String(currentValue * -1));
+  };
+
+  const handlePercent = () => {
+    const currentValue = Number(display) / 100;
+    setDisplay(String(currentValue));
+  };
+
+  const handleOperator = (nextOperator) => {
+    const value = Number(display);
+
+    if (storedValue === null) {
+      setStoredValue(value);
+    } else if (operator) {
+      const result = calculate(storedValue, value, operator);
+      setStoredValue(result);
+      setDisplay(String(result));
+    }
+
+    setOperator(nextOperator);
+    setWaitingForNext(true);
+  };
+
+  const handleEquals = () => {
+    if (operator === null || storedValue === null) {
+      return;
+    }
+
+    const value = Number(display);
+    const result = calculate(storedValue, value, operator);
+
+    setDisplay(String(result));
+    setStoredValue(null);
+    setOperator(null);
+    setWaitingForNext(true);
+  };
+
+  const handleButtonClick = (button) => {
+    if (button.type === 'digit') {
+      handleDigit(button.label);
+      return;
+    }
+
+    if (button.type === 'decimal') {
+      handleDecimal();
+      return;
+    }
+
+    if (button.type === 'toggle') {
+      handleToggle();
+      return;
+    }
+
+    if (button.type === 'percent') {
+      handlePercent();
+      return;
+    }
+
+    if (button.type === 'clear') {
+      resetCalculator();
+      return;
+    }
+
+    if (button.type === 'operator') {
+      handleOperator(button.label);
+      return;
+    }
+
+    if (button.type === 'equals') {
+      handleEquals();
+    }
+  };
 
   return (
-    <div style={{ fontFamily: 'Arial', padding: '20px', maxWidth: '900px', margin: '0 auto', background: '#f5f7fb', minHeight: '100vh' }}>
-      <h1 style={{ textAlign: 'center', color: '#1e3a8a' }}>STEVE SACCO SYSTEM</h1>
-      <p style={{ textAlign: 'center', background: '#e0f2fe', padding: '10px', borderRadius: '8px' }}>{status}</p>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', margin: '20px 0' }}>
-        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px #0001' }}>
-          <h3>Total Members</h3>
-          <h1>{loading ? "..." : members.length}</h1>
-        </div>
-        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px #0001' }}>
-          <h3>Total Savings</h3>
-          <h1>Ksh {totalSavings.toLocaleString()}</h1>
-        </div>
-        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px #0001' }}>
-          <h3>Loan Requests</h3>
-          <h1>{loading ? "..." : loans.length}</h1>
-        </div>
-      </div>
-
-      <div style={{ background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
-        <h2>Request Loan</h2>
-        <form onSubmit={requestLoan} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <input type="number" placeholder="Amount e.g. 5000" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ padding: '10px', flex: 1, borderRadius: '8px', border: '1px solid #ccc' }} />
-          <input type="text" placeholder="Reason e.g. School fees" value={reason} onChange={(e) => setReason(e.target.value)} style={{ padding: '10px', flex: 1, borderRadius: '8px', border: '1px solid #ccc' }} />
-          <button type="submit" style={{ padding: '10px 20px', background: '#1e3a8a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Request</button>
-        </form>
-      </div>
-
-      <div style={{ background: 'white', padding: '20px', borderRadius: '12px' }}>
-        <h2>Members</h2>
-        {members.map((m) => (
-          <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', padding: '8px 0' }}>
-            <span>{m.name}</span>
-            <strong>Ksh {m.savings?.toLocaleString()}</strong>
+    <main className="calculator-page">
+      <div className="calculator">
+        <div className="calculator-screen">
+          <div className="calculator-history">
+            {storedValue !== null ? `${storedValue} ${operator ?? ''}` : '0'}
           </div>
-        ))}
-        <h2 style={{ marginTop: '20px' }}>Loan Requests</h2>
-        {loans.length === 0 ? <p>No loans yet</p> : loans.map((l, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', padding: '8px 0' }}>
-            <span>{l.memberName} - {l.reason}</span>
-            <span>Ksh {l.amount} - <b style={{ color: l.status === 'Approved' ? 'green' : 'orange' }}>{l.status || 'Pending'}</b></span>
-          </div>
-        ))}
-      </div>
+          <div className="calculator-display">{display}</div>
+        </div>
 
-      <p style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>Backend: {API_URL} | Frontend: Live on Vercel</p>
-    </div>
+        <div className="calculator-grid">
+          {buttons.map((button) => (
+            <button
+              key={`${button.label}-${button.type}`}
+              type="button"
+              className={`key ${button.type} ${button.wide ? 'wide' : ''}`}
+              onClick={() => handleButtonClick(button)}
+            >
+              {button.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </main>
   );
 }
 
