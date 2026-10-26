@@ -100,6 +100,8 @@ const emptyMemberForm = {
   branch: '',
   memberId: '',
   cvName: '',
+  initialSavings: '',
+  monthlySavings: '',
 };
 
 const summaryCards = [
@@ -169,6 +171,7 @@ function App() {
   const [selectedMember, setSelectedMember] = useState(defaultMemberProfile);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginRole, setLoginRole] = useState('');
+  const [memberMode, setMemberMode] = useState('new');
   const [loanForm, setLoanForm] = useState({
     amount: 50000,
     purpose: 'Business growth',
@@ -188,6 +191,8 @@ function App() {
       cvName: 'david-otieno-cv.pdf',
       status: 'Awaiting admin review',
       credentials: { username: 'david.otieno', password: 'SACCO-7KJ4PM' },
+      initialSavings: 25000,
+      monthlySavings: 5000,
     },
   ]);
 
@@ -222,6 +227,7 @@ function App() {
     setIsLoggedIn(true);
     setLoanNotice('');
     setNewMemberNotice('');
+    setMemberMode('new');
   };
 
   const handleLogin = () => {
@@ -243,8 +249,16 @@ function App() {
   const handleNewMemberSubmit = (event) => {
     event.preventDefault();
 
-    if (!newMemberForm.name || !newMemberForm.email || !newMemberForm.phone || !newMemberForm.branch || !newMemberForm.memberId) {
-      setNewMemberNotice('Please fill in all required employee details before submitting.');
+    if (
+      !newMemberForm.name ||
+      !newMemberForm.email ||
+      !newMemberForm.phone ||
+      !newMemberForm.branch ||
+      !newMemberForm.memberId ||
+      !newMemberForm.initialSavings ||
+      !newMemberForm.monthlySavings
+    ) {
+      setNewMemberNotice('Please fill in all required member details and your starting savings amount before submitting.');
       return;
     }
 
@@ -261,11 +275,15 @@ function App() {
       cvName: newMemberForm.cvName || 'No CV uploaded',
       status: 'Awaiting admin review',
       credentials: { username, password },
+      initialSavings: Number(newMemberForm.initialSavings),
+      monthlySavings: Number(newMemberForm.monthlySavings),
     };
 
     setMemberApplications((current) => [application, ...current]);
     setNewMemberForm(emptyMemberForm);
-    setNewMemberNotice('Your details have been submitted to the admin. Credentials and CV will be reviewed.');
+    setNewMemberNotice(
+      `Your new member request has been submitted. You started with KES ${Number(newMemberForm.initialSavings).toLocaleString()} and monthly savings of KES ${Number(newMemberForm.monthlySavings).toLocaleString()}. Keep saving until you meet the loan qualification thresholds.`
+    );
   };
 
   const dashboardCards = isAdmin
@@ -570,88 +588,184 @@ function App() {
               <header style={styles.headerRow}>
                 <div>
                   <p style={styles.kicker}>Member registration</p>
-                  <h1 style={styles.pageTitle}>Add my details</h1>
+                  <h1 style={styles.pageTitle}>Member portal</h1>
                 </div>
               </header>
 
               <div style={styles.loanCard}>
-                <div style={{ ...styles.emptyState, marginBottom: '18px', background: 'rgba(59,130,246,0.08)' }}>
-                  Add your personal details below. Once submitted, they are sent to the admin for review and a secure credential will be created for you.
+                <div style={styles.memberModeSwitch}>
+                  <button
+                    type="button"
+                    onClick={() => setMemberMode('new')}
+                    style={{ ...styles.modeButton, ...(memberMode === 'new' ? styles.modeButtonActive : {}) }}
+                  >
+                    New Member
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMemberMode('normal')}
+                    style={{ ...styles.modeButton, ...(memberMode === 'normal' ? styles.modeButtonActive : {}) }}
+                  >
+                    Normal Member
+                  </button>
                 </div>
 
-                <form onSubmit={handleNewMemberSubmit} style={styles.loanForm}>
-                  <div style={styles.formGroupLoan}>
-                    <label style={styles.label}>Full name</label>
-                    <input
-                      style={styles.input}
-                      type="text"
-                      value={newMemberForm.name}
-                      onChange={(event) => setNewMemberForm((current) => ({ ...current, name: event.target.value }))}
-                    />
-                  </div>
+                {memberMode === 'new' ? (
+                  <>
+                    <div style={{ ...styles.emptyState, marginBottom: '18px', background: 'rgba(59,130,246,0.08)' }}>
+                      Start by adding your member details and the amount you want to begin saving with. Keep saving until your account becomes eligible for a loan.
+                    </div>
 
-                  <div style={styles.formGroupLoan}>
-                    <label style={styles.label}>Email</label>
-                    <input
-                      style={styles.input}
-                      type="email"
-                      value={newMemberForm.email}
-                      onChange={(event) => setNewMemberForm((current) => ({ ...current, email: event.target.value }))}
-                    />
-                  </div>
+                    <form onSubmit={handleNewMemberSubmit} style={styles.loanForm}>
+                      <div style={styles.formGroupLoan}>
+                        <label style={styles.label}>Full name</label>
+                        <input
+                          style={styles.input}
+                          type="text"
+                          value={newMemberForm.name}
+                          onChange={(event) => setNewMemberForm((current) => ({ ...current, name: event.target.value }))}
+                        />
+                      </div>
 
-                  <div style={styles.formGroupLoan}>
-                    <label style={styles.label}>Phone number</label>
-                    <input
-                      style={styles.input}
-                      type="tel"
-                      value={newMemberForm.phone}
-                      onChange={(event) => setNewMemberForm((current) => ({ ...current, phone: event.target.value }))}
-                    />
-                  </div>
+                      <div style={styles.formGroupLoan}>
+                        <label style={styles.label}>Email</label>
+                        <input
+                          style={styles.input}
+                          type="email"
+                          value={newMemberForm.email}
+                          onChange={(event) => setNewMemberForm((current) => ({ ...current, email: event.target.value }))}
+                        />
+                      </div>
 
-                  <div style={styles.formGroupLoan}>
-                    <label style={styles.label}>Branch</label>
-                    <input
-                      style={styles.input}
-                      type="text"
-                      value={newMemberForm.branch}
-                      onChange={(event) => setNewMemberForm((current) => ({ ...current, branch: event.target.value }))}
-                    />
-                  </div>
+                      <div style={styles.formGroupLoan}>
+                        <label style={styles.label}>Phone number</label>
+                        <input
+                          style={styles.input}
+                          type="tel"
+                          value={newMemberForm.phone}
+                          onChange={(event) => setNewMemberForm((current) => ({ ...current, phone: event.target.value }))}
+                        />
+                      </div>
 
-                  <div style={styles.formGroupLoan}>
-                    <label style={styles.label}>Member ID</label>
-                    <input
-                      style={styles.input}
-                      type="text"
-                      value={newMemberForm.memberId}
-                      onChange={(event) => setNewMemberForm((current) => ({ ...current, memberId: event.target.value }))}
-                    />
-                  </div>
+                      <div style={styles.formGroupLoan}>
+                        <label style={styles.label}>Branch</label>
+                        <input
+                          style={styles.input}
+                          type="text"
+                          value={newMemberForm.branch}
+                          onChange={(event) => setNewMemberForm((current) => ({ ...current, branch: event.target.value }))}
+                        />
+                      </div>
 
-                  <div style={styles.formGroupLoan}>
-                    <label style={styles.label}>CV upload</label>
-                    <input
-                      style={styles.input}
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          setNewMemberForm((current) => ({ ...current, cvName: file.name }));
-                        }
-                      }}
-                    />
-                  </div>
+                      <div style={styles.formGroupLoan}>
+                        <label style={styles.label}>Member ID</label>
+                        <input
+                          style={styles.input}
+                          type="text"
+                          value={newMemberForm.memberId}
+                          onChange={(event) => setNewMemberForm((current) => ({ ...current, memberId: event.target.value }))}
+                        />
+                      </div>
 
-                  <button type="submit" style={styles.primaryButton}>Send details to admin</button>
-                </form>
+                      <div style={styles.formGroupLoan}>
+                        <label style={styles.label}>Opening savings amount (KES)</label>
+                        <input
+                          style={styles.input}
+                          type="number"
+                          min="0"
+                          step="500"
+                          value={newMemberForm.initialSavings}
+                          onChange={(event) => setNewMemberForm((current) => ({ ...current, initialSavings: event.target.value }))}
+                        />
+                      </div>
 
-                {newMemberNotice && (
-                  <div style={{ ...styles.emptyState, marginTop: '18px', background: 'rgba(16,185,129,0.08)', color: '#d1fae5' }}>
-                    {newMemberNotice}
-                  </div>
+                      <div style={styles.formGroupLoan}>
+                        <label style={styles.label}>Monthly savings goal (KES)</label>
+                        <input
+                          style={styles.input}
+                          type="number"
+                          min="0"
+                          step="500"
+                          value={newMemberForm.monthlySavings}
+                          onChange={(event) => setNewMemberForm((current) => ({ ...current, monthlySavings: event.target.value }))}
+                        />
+                      </div>
+
+                      <div style={styles.formGroupLoan}>
+                        <label style={styles.label}>CV upload</label>
+                        <input
+                          style={styles.input}
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) {
+                              setNewMemberForm((current) => ({ ...current, cvName: file.name }));
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <button type="submit" style={styles.primaryButton}>Send details to admin</button>
+                    </form>
+
+                    {newMemberNotice && (
+                      <div style={{ ...styles.emptyState, marginTop: '18px', background: 'rgba(16,185,129,0.08)', color: '#d1fae5' }}>
+                        {newMemberNotice}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ ...styles.emptyState, marginBottom: '18px', background: 'rgba(16,185,129,0.08)' }}>
+                      Normal member section: review your current details and continue contributing until you meet loan eligibility.
+                    </div>
+
+                    <div style={styles.detailCard}>
+                      <div style={styles.detailTitle}>{memberProfile.name}</div>
+                      <div style={styles.detailMeta}>{memberProfile.memberId} • {memberProfile.branch}</div>
+
+                      <div style={styles.detailGrid}>
+                        <div>
+                          <div style={styles.detailLabel}>Email</div>
+                          <div style={styles.detailValue}>{memberProfile.email}</div>
+                        </div>
+                        <div>
+                          <div style={styles.detailLabel}>Phone</div>
+                          <div style={styles.detailValue}>{memberProfile.phone}</div>
+                        </div>
+                        <div>
+                          <div style={styles.detailLabel}>Joined</div>
+                          <div style={styles.detailValue}>{memberProfile.joined}</div>
+                        </div>
+                        <div>
+                          <div style={styles.detailLabel}>Status</div>
+                          <div style={{ ...styles.detailValue, ...statusColor(memberProfile.status) }}>{memberProfile.status}</div>
+                        </div>
+                      </div>
+
+                      <div style={styles.amountGrid}>
+                        <div style={styles.amountBox}>
+                          <div style={styles.amountLabel}>Savings</div>
+                          <div style={styles.amountValue}>{formatCurrency(memberProfile.savings)}</div>
+                        </div>
+                        <div style={styles.amountBox}>
+                          <div style={styles.amountLabel}>Shares</div>
+                          <div style={styles.amountValue}>{formatCurrency(memberProfile.shares)}</div>
+                        </div>
+                        <div style={styles.amountBox}>
+                          <div style={styles.amountLabel}>Loan Balance</div>
+                          <div style={styles.amountValue}>{formatCurrency(memberProfile.loan)}</div>
+                        </div>
+                      </div>
+
+                      <div style={{ ...styles.emptyState, marginTop: '18px' }}>
+                        {memberCanApply
+                          ? 'You qualify for a loan. You can submit an application below.'
+                          : 'Qualification required: active status, savings of at least KES 150,000 and shares of at least KES 50,000.'}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </>
@@ -1694,6 +1808,29 @@ const styles = {
     gap: '10px',
     width: '100%',
     maxWidth: '520px',
+  },
+  memberModeSwitch: {
+    display: 'inline-flex',
+    background: 'rgba(15, 23, 42, 0.7)',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    borderRadius: '12px',
+    padding: '6px',
+    gap: '8px',
+    marginBottom: '18px',
+  },
+  modeButton: {
+    background: 'transparent',
+    border: 'none',
+    borderRadius: '10px',
+    color: '#cbd5e1',
+    fontWeight: 700,
+    padding: '10px 16px',
+    cursor: 'pointer',
+  },
+  modeButtonActive: {
+    background: 'linear-gradient(135deg, rgba(79,70,229,0.18), rgba(14,165,233,0.18))',
+    color: '#fff',
+    boxShadow: 'inset 0 0 0 1px rgba(129,140,248,0.35)',
   },
 };
 
