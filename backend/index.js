@@ -275,6 +275,10 @@ app.post('/api/loans', (req, res) => {
   app.handle(req, res);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server LIVE on port ${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server LIVE on port ${PORT}`);
+  });
+}
+
+export default app;
