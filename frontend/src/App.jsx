@@ -8,28 +8,39 @@ const registry = [
   { idNumber: '98765432', name: 'Mary Njeri', yearOfBirth: '1992', phoneNumber: '0745678901' },
 ];
 
+const adminProfile = {
+  name: 'Alex Njoroge',
+  position: 'Loan Committee Chair',
+};
+
 const starterApplications = [
   {
     id: 1,
     memberName: 'Steve Gilbs',
+    memberPosition: 'Treasurer',
     purpose: 'School fees',
     amount: 120000,
+    contribution: 45500,
     status: 'Approved',
     date: '2026-10-20',
   },
   {
     id: 2,
     memberName: 'Jane Wanjiku',
+    memberPosition: 'Member',
     purpose: 'Business expansion',
     amount: 95000,
+    contribution: 38000,
     status: 'Pending',
     date: '2026-10-22',
   },
   {
     id: 3,
     memberName: 'Paul Otieno',
+    memberPosition: 'Secretary',
     purpose: 'Emergency fund',
     amount: 70000,
+    contribution: 27000,
     status: 'Reviewed',
     date: '2026-10-23',
   },
@@ -119,6 +130,7 @@ function getQualification(profile) {
 function App() {
   const [profile, setProfile] = useState(defaultProfile);
   const [applications, setApplications] = useState(starterApplications);
+  const [selectedApplicationId, setSelectedApplicationId] = useState(starterApplications[0]?.id ?? null);
   const [view, setView] = useState('choose');
   const [chatMessages, setChatMessages] = useState(initialChats);
   const [chatInput, setChatInput] = useState('');
@@ -126,6 +138,7 @@ function App() {
 
   const registryStatus = useMemo(() => verifyAgainstRegistry(profile), [profile]);
   const qualification = useMemo(() => getQualification(profile), [profile]);
+  const selectedApplication = applications.find((item) => item.id === selectedApplicationId) || applications[0];
 
   const updateField = (key, value) => setProfile((current) => ({ ...current, [key]: value }));
 
@@ -133,13 +146,16 @@ function App() {
     const nextApp = {
       id: Date.now(),
       memberName: profile.memberName,
+      memberPosition: 'Member',
       purpose: profile.purpose,
       amount: Number(profile.requestedAmount || 0),
+      contribution: Number(profile.savings || 0),
       status: qualification.qualified ? 'Pending' : 'Review required',
       date: new Date().toISOString().slice(0, 10),
     };
 
     setApplications((current) => [nextApp, ...current]);
+    setSelectedApplicationId(nextApp.id);
     setStatusMessage(
       qualification.qualified
         ? 'Application submitted and sent to the admin panel for review.'
@@ -228,6 +244,12 @@ function App() {
             Switch portal
           </button>
         </nav>
+
+        <div className="admin-mini-card">
+          <span className="admin-label">Admin on duty</span>
+          <strong>{adminProfile.name}</strong>
+          <small>{adminProfile.position}</small>
+        </div>
 
         <div className="mini-balance">
           <span>Total portfolio</span>
@@ -393,7 +415,10 @@ function App() {
                 <p className="eyebrow">Admin console</p>
                 <h1>Loan approvals dashboard</h1>
               </div>
-              <button className="primary-button small" onClick={() => setView('member')}>Back to member view</button>
+              <div className="admin-user-badge">
+                <strong>{adminProfile.name}</strong>
+                <span>{adminProfile.position}</span>
+              </div>
             </header>
 
             <div className="stats-grid admin-grid">
@@ -425,32 +450,77 @@ function App() {
                 <thead>
                   <tr>
                     <th>Member</th>
-                    <th>Purpose</th>
-                    <th>Amount</th>
+                    <th>Position</th>
+                    <th>Contribution</th>
+                    <th>Loan applied</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {applications.map((app) => (
-                    <tr key={app.id}>
+                    <tr key={app.id} onClick={() => setSelectedApplicationId(app.id)} className={selectedApplicationId === app.id ? 'selected-row' : ''}>
                       <td>{app.memberName}</td>
-                      <td>{app.purpose}</td>
-                      <td>{formatCurrency(app.amount)}</td>
+                      <td>{app.memberPosition || 'Member'}</td>
+                      <td>{formatCurrency(app.contribution || 0)}</td>
+                      <td>{formatCurrency(app.amount || 0)}</td>
                       <td>
                         <span className={`table-status ${app.status.toLowerCase().replace(/\s+/g, '-')}`}>
                           {app.status}
                         </span>
                       </td>
                       <td className="action-cell">
-                        <button className="approve-btn" onClick={() => updateLoanStatus(app.id, 'Approved')}>Approve</button>
-                        <button className="reject-btn" onClick={() => updateLoanStatus(app.id, 'Rejected')}>Reject</button>
+                        <button className="approve-btn" onClick={(e) => { e.stopPropagation(); updateLoanStatus(app.id, 'Approved'); }}>Approve</button>
+                        <button className="reject-btn" onClick={(e) => { e.stopPropagation(); updateLoanStatus(app.id, 'Rejected'); }}>Reject</button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
+            {selectedApplication && (
+              <div className="card detail-card">
+                <div className="card-header">
+                  <h3>Application details</h3>
+                  <span className={`chip ${selectedApplication.status === 'Approved' ? 'success' : selectedApplication.status === 'Rejected' ? 'warning' : 'neutral'}`}>
+                    {selectedApplication.status}
+                  </span>
+                </div>
+
+                <div className="detail-grid">
+                  <div>
+                    <label>Member name</label>
+                    <strong>{selectedApplication.memberName}</strong>
+                  </div>
+                  <div>
+                    <label>Position</label>
+                    <strong>{selectedApplication.memberPosition || 'Member'}</strong>
+                  </div>
+                  <div>
+                    <label>Contribution</label>
+                    <strong>{formatCurrency(selectedApplication.contribution || 0)}</strong>
+                  </div>
+                  <div>
+                    <label>Loan applied</label>
+                    <strong>{formatCurrency(selectedApplication.amount || 0)}</strong>
+                  </div>
+                  <div>
+                    <label>Purpose</label>
+                    <strong>{selectedApplication.purpose}</strong>
+                  </div>
+                  <div>
+                    <label>Date</label>
+                    <strong>{selectedApplication.date}</strong>
+                  </div>
+                </div>
+
+                <div className="detail-actions">
+                  <button className="approve-btn" onClick={() => updateLoanStatus(selectedApplication.id, 'Approved')}>Accept request</button>
+                  <button className="reject-btn" onClick={() => updateLoanStatus(selectedApplication.id, 'Rejected')}>Reject request</button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </section>
