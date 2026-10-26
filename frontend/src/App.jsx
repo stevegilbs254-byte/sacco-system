@@ -104,6 +104,8 @@ function App() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedMember, setSelectedMember] = useState(ALL_MEMBERS[0]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loginRole, setLoginRole] = useState('');
 
   const visibleMembers = useMemo(() => {
     return ALL_MEMBERS.filter((member) => {
@@ -120,6 +122,76 @@ function App() {
   const totalSavings = ALL_MEMBERS.reduce((sum, member) => sum + member.savings, 0);
   const totalShares = ALL_MEMBERS.reduce((sum, member) => sum + member.shares, 0);
 
+  const chooseRole = (role) => {
+    setLoginRole(role);
+    setCurrentUser({
+      name: role === 'admin' ? 'Admin User' : 'Member User',
+      role: role === 'admin' ? 'Administrator' : 'Member',
+    });
+    setIsLoggedIn(true);
+  };
+
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+    setLoginRole('');
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <div style={styles.loginPage}>
+        <div style={styles.loginCard}>
+          <div style={styles.logoRow}>
+            <div style={styles.logoBox}>S</div>
+            <div>
+              <div style={styles.brandText}>SACCO</div>
+              <h1 style={styles.loginTitle}>Welcome</h1>
+            </div>
+          </div>
+
+          <p style={styles.loginSubtitle}>Sign in to continue</p>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Email</label>
+            <input style={styles.input} type="email" placeholder="member@example.com" />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Password</label>
+            <input style={styles.input} type="password" placeholder="Enter password" />
+          </div>
+
+          <button type="button" style={styles.primaryButton} onClick={handleLogin}>Login</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoggedIn && !loginRole) {
+    return (
+      <div style={styles.roleSelectPage}>
+        <div style={styles.roleSelectCard}>
+          <p style={styles.kicker}>Continue as</p>
+          <h1 style={styles.roleTitle}>Choose your portal</h1>
+          <p style={styles.roleSubtitle}>Select whether you want to access the member or admin dashboard.</p>
+
+          <div style={styles.roleGrid}>
+            <button type="button" onClick={() => chooseRole('member')} style={{ ...styles.roleButton, ...styles.memberRoleButton }}>
+              <span style={styles.roleIcon}>👤</span>
+              <span style={styles.roleLabel}>Member</span>
+              <small style={styles.roleText}>View your profile, savings, and loan details.</small>
+            </button>
+
+            <button type="button" onClick={() => chooseRole('admin')} style={{ ...styles.roleButton, ...styles.adminRoleButton }}>
+              <span style={styles.roleIcon}>🛡️</span>
+              <span style={styles.roleLabel}>Admin</span>
+              <small style={styles.roleText}>Manage members, loans, and SACCO reports.</small>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.appShell}>
       <aside style={styles.sidebar}>
@@ -127,7 +199,7 @@ function App() {
           <div style={styles.brandIcon}>S</div>
           <div>
             <div style={styles.brandTitle}>SACCO</div>
-            <div style={styles.brandSub}>Member Portal</div>
+            <div style={styles.brandSub}>{loginRole === 'admin' ? 'Admin Portal' : 'Member Portal'}</div>
           </div>
         </div>
 
@@ -159,6 +231,16 @@ function App() {
             style={{ ...styles.navButton, ...(screen === 'reports' ? styles.navButtonActive : {}) }}
           >
             Reports
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsLoggedIn(false);
+              setLoginRole('');
+            }}
+            style={{ ...styles.navButton, ...styles.logoutButton }}
+          >
+            Logout
           </button>
         </nav>
 
@@ -364,6 +446,140 @@ const statusColor = (status) => {
 };
 
 const styles = {
+  loginPage: {
+    minHeight: '100vh',
+    display: 'grid',
+    placeItems: 'center',
+    background: 'radial-gradient(circle at top, rgba(79,70,229,0.2), transparent 35%), #07111f',
+    padding: '20px',
+  },
+  loginCard: {
+    width: '100%',
+    maxWidth: '420px',
+    background: 'rgba(15, 23, 42, 0.9)',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    borderRadius: '24px',
+    padding: '32px 28px',
+    boxShadow: '0 24px 50px rgba(15, 23, 42, 0.35)',
+  },
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+    marginBottom: '12px',
+  },
+  logoBox: {
+    width: '48px',
+    height: '48px',
+    display: 'grid',
+    placeItems: 'center',
+    borderRadius: '14px',
+    background: 'linear-gradient(135deg, #4f46e5, #10b981)',
+    fontWeight: 800,
+    fontSize: '22px',
+  },
+  brandText: {
+    fontSize: '12px',
+    letterSpacing: '0.12em',
+    color: '#a5b4fc',
+    textTransform: 'uppercase',
+    marginBottom: '4px',
+  },
+  loginTitle: {
+    margin: 0,
+    fontSize: '36px',
+  },
+  loginSubtitle: {
+    margin: '0 0 22px',
+    color: '#94a3b8',
+  },
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    marginBottom: '16px',
+  },
+  label: {
+    fontSize: '13px',
+    color: '#cbd5e1',
+  },
+  input: {
+    width: '100%',
+    background: '#0f172a',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    borderRadius: '12px',
+    color: '#e2e8f0',
+    padding: '12px 14px',
+    outline: 'none',
+  },
+  roleSelectPage: {
+    minHeight: '100vh',
+    display: 'grid',
+    placeItems: 'center',
+    padding: '32px',
+    background: 'radial-gradient(circle at center, rgba(14,165,233,0.18), transparent 35%)',
+  },
+  roleSelectCard: {
+    width: 'min(820px, 100%)',
+    background: 'rgba(15, 23, 42, 0.82)',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    borderRadius: '28px',
+    padding: '36px 28px',
+    boxShadow: '0 24px 50px rgba(15, 23, 42, 0.35)',
+  },
+  roleTitle: {
+    margin: '14px 0 10px',
+    fontSize: 'clamp(2rem, 4vw, 3rem)',
+  },
+  roleSubtitle: {
+    margin: '0 0 26px',
+    color: '#94a3b8',
+    fontSize: '1.05rem',
+  },
+  roleGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))',
+    gap: '22px',
+  },
+  roleButton: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: '12px',
+    minHeight: '220px',
+    borderRadius: '22px',
+    padding: '28px 22px',
+    color: '#fff',
+    border: '1px solid rgba(255,255,255,0.08)',
+    textAlign: 'left',
+    cursor: 'pointer',
+    transition: 'transform 0.2s ease',
+  },
+  memberRoleButton: {
+    background: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+  },
+  adminRoleButton: {
+    background: 'linear-gradient(135deg, #8b5cf6, #4338ca)',
+  },
+  roleIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '58px',
+    height: '58px',
+    borderRadius: '16px',
+    background: 'rgba(255,255,255,0.14)',
+    fontSize: '1.8rem',
+  },
+  roleLabel: {
+    fontSize: '1.6rem',
+    fontWeight: 700,
+  },
+  roleText: {
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 1.5,
+    fontSize: '0.96rem',
+  },
   appShell: {
     display: 'flex',
     minHeight: '100vh',
@@ -425,6 +641,11 @@ const styles = {
     background: 'rgba(79, 70, 229, 0.18)',
     color: '#fff',
     boxShadow: 'inset 0 0 0 1px rgba(129, 140, 248, 0.35)',
+  },
+  logoutButton: {
+    marginTop: '8px',
+    background: 'rgba(167, 139, 250, 0.12)',
+    color: '#e9d5ff',
   },
   userBox: {
     display: 'flex',
