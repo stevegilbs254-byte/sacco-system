@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 const ALL_MEMBERS = [
   {
@@ -81,6 +81,26 @@ const ALL_MEMBERS = [
   },
 ];
 
+const STORAGE_KEY = 'sacco-system-members';
+
+const getStoredMembers = () => {
+  if (typeof window === 'undefined') {
+    return ALL_MEMBERS;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return ALL_MEMBERS;
+    }
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length ? parsed : ALL_MEMBERS;
+  } catch (error) {
+    return ALL_MEMBERS;
+  }
+};
+
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat('en-KE', {
     style: 'currency',
@@ -91,7 +111,7 @@ const formatCurrency = (value = 0) =>
 const loanQualification = (member) =>
   member?.status === 'Active' && member?.savings >= 150000 && member?.shares >= 50000;
 
-const defaultMemberProfile = ALL_MEMBERS[1];
+const defaultMemberProfile = ALL_MEMBERS[1] || ALL_MEMBERS[0];
 
 const emptyMemberForm = {
   name: '',
@@ -161,6 +181,14 @@ const IllustrationScene = ({ accent = '#4f46e5' }) => (
 );
 
 function App() {
+  const [allMembers, setAllMembers] = useState(() => getStoredMembers());
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(allMembers));
+    }
+  }, [allMembers]);
+
   const [currentUser, setCurrentUser] = useState({
     name: 'Admin User',
     role: 'Administrator',
@@ -168,7 +196,7 @@ function App() {
   const [screen, setScreen] = useState('dashboard');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [selectedMember, setSelectedMember] = useState(defaultMemberProfile);
+  const [selectedMember, setSelectedMember] = useState(() => getStoredMembers()[1] || getStoredMembers()[0]);
   const [selectedLoanApplication, setSelectedLoanApplication] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginRole, setLoginRole] = useState('');
@@ -224,7 +252,7 @@ function App() {
   const memberCanApply = loanQualification(memberProfile);
 
   const visibleMembers = useMemo(() => {
-    return ALL_MEMBERS.filter((member) => {
+    return allMembers.filter((member) => {
       const matchesSearch =
         member.name.toLowerCase().includes(search.toLowerCase()) ||
         member.memberId.toLowerCase().includes(search.toLowerCase()) ||
@@ -233,13 +261,13 @@ function App() {
       const matchesStatus = statusFilter === 'All' || member.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [search, statusFilter]);
+  }, [allMembers, search, statusFilter]);
 
-  const totalSavings = ALL_MEMBERS.reduce((sum, member) => sum + member.savings, 0);
-  const totalShares = ALL_MEMBERS.reduce((sum, member) => sum + member.shares, 0);
+  const totalSavings = allMembers.reduce((sum, member) => sum + member.savings, 0);
+  const totalShares = allMembers.reduce((sum, member) => sum + member.shares, 0);
 
   const chooseRole = (role) => {
-    const nextMember = role === 'admin' ? ALL_MEMBERS[0] : defaultMemberProfile;
+    const nextMember = role === 'admin' ? allMembers[0] : defaultMemberProfile;
     setLoginRole(role);
     setSelectedMember(nextMember);
     setCurrentUser({
@@ -328,20 +356,36 @@ function App() {
       monthlySavings: Number(newMemberForm.monthlySavings),
     };
 
+    const newMemberRecord = {
+      id: application.id,
+      name: newMemberForm.name,
+      email: newMemberForm.email,
+      phone: newMemberForm.phone,
+      memberId: newMemberForm.memberId,
+      status: 'Pending',
+      savings: Number(newMemberForm.initialSavings),
+      shares: 0,
+      loan: 0,
+      joined: new Date().toISOString().slice(0, 10),
+      branch: newMemberForm.branch,
+    };
+
     setMemberApplications((current) => [application, ...current]);
+    setAllMembers((current) => [newMemberRecord, ...current]);
+    setSelectedMember(newMemberRecord);
     setNewMemberForm(emptyMemberForm);
     setMemberMode(null);
     setNewMemberNotice(
-      `Your new member request has been submitted. You started with KES ${Number(newMemberForm.initialSavings).toLocaleString()} and monthly savings of KES ${Number(newMemberForm.monthlySavings).toLocaleString()}.`,
+      `Your new member request has been submitted and saved to the admin member list. You started with KES ${Number(newMemberForm.initialSavings).toLocaleString()} and monthly savings of KES ${Number(newMemberForm.monthlySavings).toLocaleString()}.`,
     );
   };
 
   const dashboardCards = isAdmin
     ? [
-        { label: 'Total Members', value: ALL_MEMBERS.length, tone: '#4f46e5' },
-        { label: 'Active Members', value: ALL_MEMBERS.filter((m) => m.status === 'Active').length, tone: '#10b981' },
-        { label: 'Pending', value: ALL_MEMBERS.filter((m) => m.status === 'Pending').length, tone: '#f59e0b' },
-        { label: 'Inactive', value: ALL_MEMBERS.filter((m) => m.status === 'Inactive').length, tone: '#ef4444' },
+        { label: 'Total Members', value: allMembers.length, tone: '#4f46e5' },
+        { label: 'Active Members', value: allMembers.filter((m) => m.status === 'Active').length, tone: '#10b981' },
+        { label: 'Pending', value: allMembers.filter((m) => m.status === 'Pending').length, tone: '#f59e0b' },
+        { label: 'Inactive', value: allMembers.filter((m) => m.status === 'Inactive').length, tone: '#ef4444' },
       ]
     : [
         { label: 'Savings', value: formatCurrency(memberProfile.savings), tone: '#10b981' },
@@ -539,7 +583,7 @@ function App() {
                   </div>
                   <div style={styles.statCard}>
                     <div style={styles.statLabel}>Outstanding Loans</div>
-                    <div style={styles.statValue}>{formatCurrency(ALL_MEMBERS.reduce((sum, member) => sum + member.loan, 0))}</div>
+                    <div style={styles.statValue}>{formatCurrency(allMembers.reduce((sum, member) => sum + member.loan, 0))}</div>
                   </div>
                 </>
               ) : (
